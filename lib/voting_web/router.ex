@@ -15,7 +15,7 @@ defmodule VotingWeb.Router do
   end
 
   ##############################################################
-
+#
   ## Browser Requests
   # These are intended to mount the React frontend app in the browser by
   # serving static content.
@@ -39,6 +39,7 @@ defmodule VotingWeb.Router do
      pipe_through :api
 
      get "/refresh", ApiController, :refresh
+     post "/spawn/:candidates", ApiController, :spawn
    end
 
   # Enables LiveDashboard only for development

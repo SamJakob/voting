@@ -1,17 +1,10 @@
 import axios from "axios";
+import {VoterData} from "./types";
 
-export const startSession = async (candidates: number) => {
-    axios
-        .post("http://localhost:4000/app/refresh", {
-            title: "Hello World!",
-            body: "This is a new post."
-        })
-        .then((response: any) => {
-            console.log("SUCCESS AXIOS")
-            return {
-                props: {response}
-            }
-        });
+export async function startSession(candidates: number) {
+    await axios.post(`/api/spawn/${candidates}`);
+}
 
-
+export async function refreshDash() {
+    return await axios.get('/api/refresh');
 }

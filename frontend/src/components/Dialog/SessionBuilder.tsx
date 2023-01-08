@@ -25,7 +25,7 @@ import { v4 as uuid } from 'uuid';
 import React, {Dispatch, Key, SetStateAction, useEffect, useState} from "react";
 import classNames from "classnames";
 import {Classes, Popover2} from "@blueprintjs/popover2";
-import {startSession} from "../../utils/networkRequests";
+import {refreshDash, startSession} from "../../utils/networkRequests";
 
 
 export interface IMultistepDialogExampleState {
@@ -44,7 +44,7 @@ export interface IMultistepDialogExampleState {
 
 
 // @ts-ignore
-export default function SessionBuilder({dialogIsOpen, setDialogIsOpen}) {
+export default function SessionBuilder({dialogIsOpen, setDialogIsOpen, setSession, setVoterData}) {
     const [loading, setLoading] = useState<boolean>(false)
     // const [policy, setPolicy] = useState<>()
     const [candidates, setCandidates] = useState<number>(1)
@@ -68,12 +68,6 @@ export default function SessionBuilder({dialogIsOpen, setDialogIsOpen}) {
 
     const { hasTitle, ...flags} = state;
 
-    let toaster: Toaster;
-
-    const refHandlers = {
-        toaster: (ref: any) => toaster = ref,
-    }
-
     const finalButtonProps: Partial<ButtonProps> = {
         intent: "primary",
         loading: loading,
@@ -81,14 +75,11 @@ export default function SessionBuilder({dialogIsOpen, setDialogIsOpen}) {
         onClick: handleNewSession
     }
 
-    function handleNewSession() {
-        setLoading(true)
-        startSession(candidates).then(() =>
-            setLoading(false)
-        )
-
+    async function handleNewSession() {
+        await startSession(candidates)
+        setVoterData((await refreshDash()).data)
+        setDialogIsOpen(false)
     }
-
 
     return (
         <>
