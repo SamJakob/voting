@@ -22,7 +22,7 @@ import {
 } from "@blueprintjs/core";
 import {Classes as Popover2Classes, ContextMenu2, Tooltip2} from "@blueprintjs/popover2";
 import { v4 as uuid } from 'uuid';
-import React, {Key, useEffect, useState} from "react";
+import React, {Dispatch, Key, SetStateAction, useEffect, useState} from "react";
 import classNames from "classnames";
 import {Classes, Popover2} from "@blueprintjs/popover2";
 
@@ -45,7 +45,7 @@ export interface IMultistepDialogExampleState {
 // @ts-ignore
 export default function SessionBuilder({dialogIsOpen, setDialogIsOpen}) {
     const [loading, setLoading] = useState<boolean>(false)
-    const [policy, setPolicy] = useState<{boolean}>()
+    // const [policy, setPolicy] = useState<>()
     const [candidates, setCandidates] = useState<number>(1)
 
     //Runs only on the first render
@@ -136,7 +136,7 @@ export default function SessionBuilder({dialogIsOpen, setDialogIsOpen}) {
     );
 }
 
-function PolicyPanel({setCandidates}) {
+function PolicyPanel({setCandidates}: {setCandidates: Dispatch<SetStateAction<number>>}) {
     const id = uuid()
 
     return (
@@ -165,7 +165,7 @@ function PolicyPanel({setCandidates}) {
                     style={{height: 200, width: 500, display: "flex", alignItems: "center", justifyContent: "center"}}>
                     <>
                         <div className={"flexCol"} style={{justifyContent: "center", alignItems: "center"}}>
-                            <p style={{color: "#738091", weight: 600, textAlign: "center"}}>Select the number of candidates you want to start in this voting session</p>
+                            <p style={{color: "#738091", fontWeight: 600, textAlign: "center"}}>Select the number of candidates you want to start in this voting session</p>
                             <Popover2
                                 content={id}
                                 enforceFocus={false}
@@ -182,7 +182,7 @@ function PolicyPanel({setCandidates}) {
     )
 }
 
-function TerminalPanel({candidates}) {
+function TerminalPanel({candidates}: {candidates: number}) {
     return (
         <div className={classNames(Classes2.DIALOG_BODY, "docs-multistep-dialog-example-step")}>
             <Divider style={{marginBottom: 20}}/>
