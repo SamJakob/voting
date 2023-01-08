@@ -50,6 +50,7 @@ defmodule Voting.MixProject do
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
       {:typed_struct, "~> 0.3.0"},
+      {:cors_plug, "~> 3.0"},
       {:uuid, "~> 1.1"},
 
       {:paxos, git: "https://github.com/SamJakob/paxos", tag: "v0.2.1"},
