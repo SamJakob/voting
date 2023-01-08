@@ -11,27 +11,28 @@ defmodule VotingWeb.Router do
   end
 
   pipeline :api do
-    plug CORSPlug, origin: ["http://localhost:4000/app/refresh"]
     plug :accepts, ["json"]
   end
+
+  ##############################################################
+
+  ## Browser Requests
+  # These are intended to mount the React frontend app in the browser by
+  # serving static content.
 
   scope "/", VotingWeb do
     get "/", ReactDelegateController, :index
   end
 
   scope "/app", VotingWeb do
-    pipe_through :api
     get "/", ReactDelegateController, :index
-
-    post "/refresh", ReactDelegateController, :refresh
-#    get "/*path", ReactDelegateController, :index
+    get "/*path", ReactDelegateController, :index
   end
 
-#  scope "/", VotingWeb do
-#    pipe_through :browser
-#
-#    get "/", PageController, :index
-#  end
+  ##############################################################
+
+  ## API Requests
+  # Called by the React frontend app to execute tasks on the backend.
 
    # Other scopes may use custom stacks.
    scope "/api", VotingWeb do
