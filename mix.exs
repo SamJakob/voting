@@ -5,7 +5,7 @@ defmodule Voting.MixProject do
     [
       app: :voting,
       version: "0.1.0",
-      elixir: "~> 1.12",
+      elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: Mix.compilers(),
       start_permanent: Mix.env() == :prod,
@@ -48,7 +48,12 @@ defmodule Voting.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.18"},
       {:jason, "~> 1.2"},
-      {:plug_cowboy, "~> 2.5"}
+      {:plug_cowboy, "~> 2.5"},
+      {:typed_struct, "~> 0.3.0"},
+      {:uuid, "~> 1.1"},
+
+#      {:paxos, git: "https://github.com/SamJakob/paxos", tag: "v0.2.0"},
+      {:paxos, path: "../paxos"}
     ]
   end
 

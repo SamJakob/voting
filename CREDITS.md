@@ -1,0 +1,2 @@
+- https://bpaulino.com/entries/modern-webapps-with-elixir-phoenix-typescript-react
+- https://levelup.gitconnected.com/genserver-dynamicsupervisor-and-registry-the-elixir-triad-to-manage-processes-a65d4c3351c1
