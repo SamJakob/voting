@@ -49,6 +49,8 @@
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/uuid" />
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/paxos" />
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/typed_struct" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/ex_json_schema" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/phx_json_rpc" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="phoenix" level="project" />
@@ -118,5 +120,9 @@
     <orderEntry type="library" name="ex_unit_notifier" level="project" />
     <orderEntry type="library" name="earmark" level="project" />
     <orderEntry type="library" name="benchfella" level="project" />
+    <orderEntry type="library" name="phx_json_rpc" level="project" />
+    <orderEntry type="library" name="ex_json_schema" level="project" />
+    <orderEntry type="library" name="httpoison" level="project" />
+    <orderEntry type="library" name="poison" level="project" />
   </component>
 </module>

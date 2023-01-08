@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="phx_json_rpc" type="mix">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/phx_json_rpc/ebin" />
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/phx_json_rpc/ebin" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/deps/phx_json_rpc/lib" />
+      <root url="file://$PROJECT_DIR$/deps/phx_json_rpc/lib" />
+    </SOURCES>
+  </library>
+</component>
