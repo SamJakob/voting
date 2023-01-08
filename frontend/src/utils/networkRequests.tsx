@@ -6,7 +6,7 @@ export const startSession = async (candidates: number) => {
             title: "Hello World!",
             body: "This is a new post."
         })
-        .then((response) => {
+        .then((response: any) => {
             console.log("SUCCESS AXIOS")
             return {
                 props: {response}
