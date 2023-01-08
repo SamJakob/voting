@@ -53,7 +53,7 @@ defmodule Voting.MixProject do
       {:uuid, "~> 1.1"},
       {:cors_plug, "~> 3.0", runtime: Mix.env() == :dev},
 
-      {:paxos, git: "https://github.com/SamJakob/paxos", tag: "v0.2.1"},
+      {:paxos, git: "https://github.com/SamJakob/paxos", tag: "v0.2.2"},
     ]
   end
 

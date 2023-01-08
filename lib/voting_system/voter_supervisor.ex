@@ -10,18 +10,35 @@ defmodule VotingSystem.VoterSupervisor do
 
   @voterRegistry :voter_registry
 
+  ##################################################################################
+
+  # Extending DynamicSupervisor functionality.
+
   def start_link(_arg) do
     DynamicSupervisor.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def start_child(active_voters, voter_id, simulation_parameters \\ nil) do
+  def start_child(active_voters, voter_id, simulation_parameters \\ nil, atomic \\ false) do
     # Start the Voter using the specification provided by the `child_spec/1` function
-    # in the Voter module.
-    DynamicSupervisor.start_child(
+    # in the Voter module. Save the response to be returned at the end.
+    result = DynamicSupervisor.start_child(
       __MODULE__,
       {Voter, {voter_id, active_voters, simulation_parameters}}
     )
+
+    # Tell each existing process about the new voter if the operation is not meant to be
+    # 'atomic', then return the final result.
+    # If the operation is meant to be atomic, we don't update the voters as it is assumed
+    # lots of voters are to be added at once.
+    if not atomic do
+      update_voters()
+      result
+    else
+      result
+    end
   end
+
+  ##################################################################################
 
   @doc """
   Starts a process for a human (live) voter.
@@ -31,7 +48,7 @@ defmodule VotingSystem.VoterSupervisor do
   @doc """
   Starts a process for a single automated (simulated) voter.
   """
-  def start_automated_voter(active_voters, voter_id \\ nil) do
+  def start_automated_voter(active_voters, voter_id \\ nil, atomic \\ false) do
     voter_id = if voter_id != nil, do: voter_id, else: String.to_atom(UUID.uuid4())
     coordinates = {Enum.random(-10..10), Enum.random(-10..10)}
     tolerance = Enum.random(@simTolerance)
@@ -39,7 +56,7 @@ defmodule VotingSystem.VoterSupervisor do
     start_child(active_voters, voter_id, %{
       coordinates: coordinates,
       tolerance: tolerance
-    })
+    }, atomic)
   end
 
   @doc """
@@ -47,7 +64,11 @@ defmodule VotingSystem.VoterSupervisor do
   """
   def start_automated_voters(count) when count > 0 do
     voters = for _ <- 1..count, do: String.to_atom(UUID.uuid4())
-    Enum.each(voters, fn voter -> start_automated_voter(voters, voter) end)
+    result = Enum.map(voters, fn voter -> start_automated_voter(voters, voter, true) end)
+
+    # Wait for all the voters to be added, then have everyone update the list of active voters.
+    update_voters()
+    result
   end
 
   @doc """
@@ -89,8 +110,12 @@ defmodule VotingSystem.VoterSupervisor do
     end
   end
 
+  @doc """
+  Fetches a detailed list of each active voter in the system. This is useful for displaying
+  or debugging application state.
+  """
   def get_active_voters() do
-    voters = Enum.map(get_active_voter_ids(), fn voter -> Voter.get_overview(voter) end)
+    Enum.map(get_active_voter_ids(), fn voter -> Voter.get_overview(voter) end)
   end
 
   @doc """
@@ -98,13 +123,33 @@ defmodule VotingSystem.VoterSupervisor do
   being killed on account of no longer being used. This prevents the supervisor from
   automatically restarting the voter.
   """
-  def kill_voter(voter_id), do: Voter.stop(voter_id, :normal)
+  def kill_voter(voter_id, atomic \\ false) do
+    result = Voter.stop(voter_id, :normal)
+    if not atomic, do: update_voters()
+    result
+  end
 
   @doc """
   Convenience method to kill all voter processes actively registered in the system using
   kill_voter/1.
   """
-  def kill_all_voters(), do: Enum.each(get_active_voter_ids(), fn voter -> kill_voter(voter) end)
+  def kill_all_voters() do
+    result = Enum.map(get_active_voter_ids(), fn voter -> kill_voter(voter, true) end)
+    update_voters()
+    result
+  end
+
+  ##################################################################################
+
+  # Private Helpers
+
+  # Updates, for each voter, the list of voters participating in the system.
+  defp update_voters() do
+    voters = get_active_voter_ids()
+    Enum.map(voters, fn voter -> Voter.update_voters(voter, voters) end)
+  end
+
+  ##################################################################################
 
   @impl true
   def init(_arg) do

@@ -19,4 +19,5 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
 ```elixir
 alias VotingSystem.{Voter, VoterSupervisor}
 VoterSupervisor.start_automated_voters(3)
+VoterSupervisor.get_active_voters()
 ```

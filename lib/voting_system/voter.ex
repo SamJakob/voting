@@ -18,13 +18,16 @@ defmodule VotingSystem.Voter do
     field :id, atom()
 
     # The list of active voters on the network.
-    field :active_voters, list(String.t())
+    field :active_voters, list(atom())
 
     # If set, the parameters to simulate a voter with.
     field :simulation_parameters, %{
       coordinates: {integer(), integer()},
       tolerance: integer(),
     } | nil, default: nil
+
+    # Stores the PID of the Paxos delegate for this voter.
+    field :paxos, pid() | nil, default: nil
 
     # Stores the cookie that is needed when altering the Voter's Paxos delegate configuration.
     field :paxos_cookie, any(), default: nil
@@ -84,6 +87,10 @@ defmodule VotingSystem.Voter do
     voter_id |> via_tuple |> GenServer.call(:get_overview)
   end
 
+  def update_voters(voter_id, voters) do
+    voter_id |> via_tuple |> GenServer.call({:update_voters, voters})
+  end
+
   ## Server Callbacks
 
   @impl true
@@ -91,11 +98,11 @@ defmodule VotingSystem.Voter do
     # Create a secure Paxos cookie, start Paxos and augment the state with the Paxos cookie
     # (assuming that Paxos start successfully).
     paxos_cookie = Helpers.Crypto.base64_secure_token()
-    paxos_pid = Paxos.start(state.id, state.active_voters, fn ballot -> should_accept(state, ballot) end, paxos_cookie)
+    paxos = Paxos.start(state.id, state.active_voters, fn ballot -> should_accept(state, ballot) end, paxos_cookie)
 
-    if is_pid(paxos_pid) do
+    if is_pid(paxos) do
       Logger.info("Initialized Voter process: #{state.id} [#{is_live_voter_string(state)}]")
-      {:ok, %{state | paxos_cookie: paxos_cookie}}
+      {:ok, %{state | paxos: paxos, paxos_cookie: paxos_cookie}}
     else
       {:error, "Failed to initialize Paxos for Voter process: #{state.id}."}
     end
@@ -113,8 +120,30 @@ defmodule VotingSystem.Voter do
   def handle_call(:get_overview, _from, state), do: {:reply, %{
     id: state.id,
     is_simulated: !is_live_voter(state),
-    simulation: state.simulation_parameters
+    simulation: state.simulation_parameters,
+    active_voters: state.active_voters
   }, state}
+
+  @impl true
+  def handle_call({:update_voters, voters}, _from, state) do
+    # If the new list of voters is different to the current one, update the list of active voters
+    # in both this voter process and the Paxos delegate. Because lists were used, we must sort the
+    # lists first to check that just the values are equal. We can optimize this though, by
+    # subsequently using the sorted list to save time when running the next iteration (as the list
+    # should be mostly, if not entirely, sorted).
+    sorted_voters = Enum.sort(voters)
+    if Enum.sort(state.active_voters) != sorted_voters do
+      # Update the current state.
+      state = %{state | active_voters: sorted_voters}
+
+      # Propagate the changes to the Paxos delegate and return the response.
+      result_from_paxos = Paxos.change_participants(state.paxos, state.paxos_cookie, sorted_voters, 5000)
+      {:reply, result_from_paxos, state}
+    else
+      # If there were no changes, just return :no_change and don't bother to propagate the changes.
+      {:reply, :no_change, state}
+    end
+  end
 
   ## Private Helper Functions
 
