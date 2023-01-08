@@ -5,19 +5,23 @@ defmodule Voting.Application do
 
   use Application
 
+  @voterRegistry :voter_registry
+
   @impl true
   def start(_type, _args) do
     children = [
-      # Start the Ecto repository
-#      Voting.Repo,
-      # Start the Telemetry supervisor
+      # (Database) Start the Ecto repository
+      # Voting.Repo,
+      # (Logging and Telemetry) Start the Telemetry supervisor
       VotingWeb.Telemetry,
-      # Start the PubSub system
+      # (Pub/Sub Messaging) Start the PubSub system
       {Phoenix.PubSub, name: Voting.PubSub},
-      # Start the Endpoint (http/https)
-      VotingWeb.Endpoint
-      # Start a worker by calling: Voting.Worker.start_link(arg)
-      # {Voting.Worker, arg}
+      # (HTTP(S) and WebSocket Endpoints) Start the Endpoint (http/https)
+      VotingWeb.Endpoint,
+      # (Voter Pool) Start the VoterSupervisor process for the Voter processes.
+      # This could later be wrapped with a PartitionSupervisor.
+      {VotingSystem.VoterSupervisor, []},
+      {Registry, [keys: :unique, name: @voterRegistry]}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

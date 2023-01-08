@@ -46,6 +46,9 @@
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/telemetry_metrics" />
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/phoenix_live_reload" />
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/phoenix_live_dashboard" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/uuid" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/paxos" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/typed_struct" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="phoenix" level="project" />
@@ -107,5 +110,13 @@
     <orderEntry type="library" name="x509" level="project" />
     <orderEntry type="library" name="phoenix_template" level="project" />
     <orderEntry type="library" name="credo" level="project" />
+    <orderEntry type="library" name="paxos" level="project" />
+    <orderEntry type="library" name="typed_struct" level="project" />
+    <orderEntry type="library" name="uuid" level="project" />
+    <orderEntry type="library" name="ex_check" level="project" />
+    <orderEntry type="library" name="mix_test_watch" level="project" />
+    <orderEntry type="library" name="ex_unit_notifier" level="project" />
+    <orderEntry type="library" name="earmark" level="project" />
+    <orderEntry type="library" name="benchfella" level="project" />
   </component>
 </module>

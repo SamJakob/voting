@@ -15,3 +15,9 @@ Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
 Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
 
+## Starting Voters (Simulated)
+```elixir
+alias VotingSystem.{Voter, VoterSupervisor}
+voters = [:p1, :p2, :p3]
+Enum.each(voters, fn voter -> VoterSupervisor.start_automated_child(voters, voter) end)
+```
