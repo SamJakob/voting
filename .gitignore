@@ -34,3 +34,7 @@ npm-debug.log
 
 # Frontend pre-built bundles
 priv/static/webapp
+
+# IntelliJ configuration
+.idea/
+*.iml
