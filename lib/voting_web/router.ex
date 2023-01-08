@@ -11,6 +11,7 @@ defmodule VotingWeb.Router do
   end
 
   pipeline :api do
+    plug CORSPlug, origin: ["http://localhost:4000/app/refresh"]
     plug :accepts, ["json"]
   end
 
@@ -19,8 +20,11 @@ defmodule VotingWeb.Router do
   end
 
   scope "/app", VotingWeb do
+    pipe_through :api
     get "/", ReactDelegateController, :index
-    get "/*path", ReactDelegateController, :index
+
+    post "/refresh", ReactDelegateController, :refresh
+#    get "/*path", ReactDelegateController, :index
   end
 
 #  scope "/", VotingWeb do

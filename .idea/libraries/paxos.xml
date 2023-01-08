@@ -11,6 +11,12 @@
       <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
       <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
       <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/paxos/ebin" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
@@ -20,6 +26,9 @@
       <root url="file://$PROJECT_DIR$/../paxos/lib" />
       <root url="file://$PROJECT_DIR$/../paxos/lib" />
       <root url="file://$PROJECT_DIR$/../paxos/lib" />
+      <root url="file://$PROJECT_DIR$/deps/paxos/lib" />
+      <root url="file://$PROJECT_DIR$/deps/paxos/lib" />
+      <root url="file://$PROJECT_DIR$/deps/paxos/lib" />
     </SOURCES>
   </library>
 </component>

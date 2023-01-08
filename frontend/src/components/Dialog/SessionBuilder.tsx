@@ -25,6 +25,7 @@ import { v4 as uuid } from 'uuid';
 import React, {Dispatch, Key, SetStateAction, useEffect, useState} from "react";
 import classNames from "classnames";
 import {Classes, Popover2} from "@blueprintjs/popover2";
+import {startSession} from "../../utils/networkRequests";
 
 
 export interface IMultistepDialogExampleState {
@@ -48,10 +49,9 @@ export default function SessionBuilder({dialogIsOpen, setDialogIsOpen}) {
     // const [policy, setPolicy] = useState<>()
     const [candidates, setCandidates] = useState<number>(1)
 
-    //Runs only on the first render
-    useEffect(() => {
-        setLoading(false)
-    }, []);
+    //do we need to fetch anything?
+    // useEffect(() => {
+    // }, []);
 
     let state: IMultistepDialogExampleState = {
         toasts: [],
@@ -76,61 +76,42 @@ export default function SessionBuilder({dialogIsOpen, setDialogIsOpen}) {
 
     const finalButtonProps: Partial<ButtonProps> = {
         intent: "primary",
+        loading: loading,
         text: "Start Session",
+        onClick: handleNewSession
+    }
+
+    function handleNewSession() {
+        setLoading(true)
+        startSession(candidates).then(() =>
+            setLoading(false)
+        )
+
     }
 
 
     return (
         <>
             <div className={"bp4-dark"}>
-                {/*Added a global style to override the 500px fixed width and made is 2000px to fit the table*/}
-                {loading
-                    ?
-                    <Spinner/>
-                    :
-                    <>
-                        <Toaster position={Position.TOP} ref={refHandlers.toaster} />
-                        <MultistepDialog
-                            className="dialog"
-                            icon="info-sign"
-                            isOpen={dialogIsOpen}
-                            onClose={() => setDialogIsOpen(false)}
-                            finalButtonProps={finalButtonProps}
-                            title={hasTitle ? "Create new session" : undefined}
-                        >
-                            {loading
-                                ?
-                                <Spinner/>
-                                :
-                                <DialogStep
-                                    id="select"
-                                    panel={<PolicyPanel setCandidates={setCandidates}/>}
-                                    title="Select"
-                                />
-                            }
-                            {loading
-                                ?
-                                <Spinner/>
-                                :
-                                <DialogStep
-                                    id="configure"
-                                    panel={<TerminalPanel candidates={candidates}/>}
-                                    title="Configure"
-                                />
-                            }
-                            {/*{loading*/}
-                            {/*    ?*/}
-                            {/*    <Spinner/>*/}
-                            {/*    :*/}
-                            {/*    <DialogStep*/}
-                            {/*        id="testsuite"*/}
-                            {/*        panel={<TestSuitePanel test_suite={test_suite} test_suites={test_suites!} setTestSuite={setTestSuite}/>}*/}
-                            {/*        title="Test Suite"*/}
-                            {/*    />*/}
-                            {/*}*/}
-                        </MultistepDialog>
-                    </>
-                }
+            <MultistepDialog
+                className="dialog"
+                icon="info-sign"
+                isOpen={dialogIsOpen}
+                onClose={() => setDialogIsOpen(false)}
+                finalButtonProps={finalButtonProps}
+                title={hasTitle ? "Create new session" : undefined}
+            >
+                <DialogStep
+                    id="select"
+                    panel={<PolicyPanel setCandidates={setCandidates}/>}
+                    title="Select"
+                />
+                <DialogStep
+                    id="configure"
+                    panel={<TerminalPanel candidates={candidates}/>}
+                    title="Configure"
+                />
+            </MultistepDialog>
             </div>
         </>
     );
