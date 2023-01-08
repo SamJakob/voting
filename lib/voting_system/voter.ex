@@ -47,6 +47,8 @@ defmodule VotingSystem.Voter do
       start: {__MODULE__, :start_link, [
         voter_id, active_voters, simulation_parameters
       ]},
+      # Indicate that this is a worker process.
+      type: :worker,
       # Ensure the process restarts on abnormal exit.
       restart: :transient,
     }
@@ -66,6 +68,13 @@ defmodule VotingSystem.Voter do
   """
   def propose(voter_id, policy) do
     voter_id |> via_tuple |> GenServer.call({:propose, policy})
+  end
+
+  @doc """
+  Check if the specified voter is a simulated voter.
+  """
+  def is_simulated(voter_id) do
+    voter_id |> via_tuple |> GenServer.call(:is_simulated)
   end
 
   @doc """
@@ -96,6 +105,9 @@ defmodule VotingSystem.Voter do
   def handle_call({:propose, policy}, _from, state) do
 
   end
+
+  @impl true
+  def handle_call(:is_simulated, _from, state), do: {:reply, !is_live_voter(state), state}
 
   @impl true
   def handle_call(:log_state, _from, state), do: {:reply, "State: #{inspect(state)}", state}
