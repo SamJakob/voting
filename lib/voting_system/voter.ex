@@ -78,10 +78,10 @@ defmodule VotingSystem.Voter do
   end
 
   @doc """
-  For debugging purposes, print the state of the current Voter.
+  Returns an overview of this voter process in a map.
   """
-  def log_state(voter_id) do
-    voter_id |> via_tuple |> GenServer.call(:log_state)
+  def get_overview(voter_id) do
+    voter_id |> via_tuple |> GenServer.call(:get_overview)
   end
 
   ## Server Callbacks
@@ -110,7 +110,11 @@ defmodule VotingSystem.Voter do
   def handle_call(:is_simulated, _from, state), do: {:reply, !is_live_voter(state), state}
 
   @impl true
-  def handle_call(:log_state, _from, state), do: {:reply, "State: #{inspect(state)}", state}
+  def handle_call(:get_overview, _from, state), do: {:reply, %{
+    id: state.id,
+    is_simulated: !is_live_voter(state),
+    simulation: state.simulation_parameters
+  }, state}
 
   ## Private Helper Functions
 

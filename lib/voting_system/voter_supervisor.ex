@@ -76,10 +76,10 @@ defmodule VotingSystem.VoterSupervisor do
   {total_active_voters, simulated_voters, human_voters}
   Otherwise, if `detailed` is set to false, just the total active voters is returned.
   """
-  def get_active_voters(detailed \\ true) do
+  def get_active_voter_count(detailed \\ true) do
     total_active_voters = DynamicSupervisor.count_children(__MODULE__)[:workers] || 0
 
-    if specific do
+    if detailed do
       voters = Enum.map(get_active_voter_ids(), fn voter -> Voter.is_simulated(voter) end)
       simulated_voters = Enum.count(voters, fn is_simulated -> is_simulated end)
       human_voters = Enum.count(voters, fn is_simulated -> !is_simulated end)
@@ -89,7 +89,21 @@ defmodule VotingSystem.VoterSupervisor do
     end
   end
 
+  def get_active_voters() do
+    voters = Enum.map(get_active_voter_ids(), fn voter -> Voter.get_overview(voter) end)
+  end
+
+  @doc """
+  Kills the voter with the specified voter ID with :normal to indicate that the process is
+  being killed on account of no longer being used. This prevents the supervisor from
+  automatically restarting the voter.
+  """
   def kill_voter(voter_id), do: Voter.stop(voter_id, :normal)
+
+  @doc """
+  Convenience method to kill all voter processes actively registered in the system using
+  kill_voter/1.
+  """
   def kill_all_voters(), do: Enum.each(get_active_voter_ids(), fn voter -> kill_voter(voter) end)
 
   @impl true
