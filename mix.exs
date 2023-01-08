@@ -51,6 +51,7 @@ defmodule Voting.MixProject do
       {:jason, "~> 1.4"},
       {:typed_struct, "~> 0.3.0"},
       {:uuid, "~> 1.1"},
+      {:cors_plug, "~> 3.0", runtime: Mix.env() == :dev},
 
       {:paxos, git: "https://github.com/SamJakob/paxos", tag: "v0.2.1"},
     ]
