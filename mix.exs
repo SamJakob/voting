@@ -52,8 +52,7 @@ defmodule Voting.MixProject do
       {:typed_struct, "~> 0.3.0"},
       {:uuid, "~> 1.1"},
 
-#      {:paxos, git: "https://github.com/SamJakob/paxos", tag: "v0.2.0"},
-      {:paxos, path: "../paxos"}
+      {:paxos, git: "https://github.com/SamJakob/paxos", tag: "v0.2.1"},
     ]
   end
 

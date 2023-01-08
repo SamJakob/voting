@@ -1,8 +1,11 @@
 defmodule VotingSystem.Voter do
   use GenServer
   use TypedStruct
-  require Logger
+
   import VotingSystem.Policy
+
+  require Logger
+  require Helpers.Crypto
 
   @moduledoc """
   A Voting System Voter is a process spawned for a given user to handle voting for them.
@@ -11,12 +14,20 @@ defmodule VotingSystem.Voter do
   @voterRegistry :voter_registry
 
   typedstruct enforce: true do
+    # The ID of the current voter.
     field :id, atom()
+
+    # The list of active voters on the network.
     field :active_voters, list(String.t())
+
+    # If set, the parameters to simulate a voter with.
     field :simulation_parameters, %{
       coordinates: {integer(), integer()},
       tolerance: integer(),
     } | nil, default: nil
+
+    # Stores the cookie that is needed when altering the Voter's Paxos delegate configuration.
+    field :paxos_cookie, any(), default: nil
   end
 
   ## GenServer API
@@ -68,9 +79,17 @@ defmodule VotingSystem.Voter do
 
   @impl true
   def init(state) do
-    Logger.info("Initialized Voter process: #{state.id} [#{is_live_voter_string(state)}]")
-    Paxos.start(state.id, state.active_voters, fn ballot -> should_accept(state, ballot) end)
-    {:ok, state}
+    # Create a secure Paxos cookie, start Paxos and augment the state with the Paxos cookie
+    # (assuming that Paxos start successfully).
+    paxos_cookie = Helpers.Crypto.base64_secure_token()
+    paxos_pid = Paxos.start(state.id, state.active_voters, fn ballot -> should_accept(state, ballot) end, paxos_cookie)
+
+    if is_pid(paxos_pid) do
+      Logger.info("Initialized Voter process: #{state.id} [#{is_live_voter_string(state)}]")
+      {:ok, %{state | paxos_cookie: paxos_cookie}}
+    else
+      {:error, "Failed to initialize Paxos for Voter process: #{state.id}."}
+    end
   end
 
   @impl true
