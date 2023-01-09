@@ -1,15 +1,14 @@
 export interface Policy {
-    title: string,
-    coordinates: number[],
-    rank: number
+    description: string;
+    coordinates: number[];
 }
 
 export interface VoterData {
-    voters: {voter: Voter}[]
+    voters: Voter[];
 }
 
 export interface Voter {
-    id: string,
-    is_simulated: boolean,
-    simulation: {coordinates: number[], tolerance: number}
+    id: string;
+    is_simulated: boolean;
+    simulation: { coordinates: number[]; tolerance: number };
 }

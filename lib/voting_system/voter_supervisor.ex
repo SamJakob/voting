@@ -68,8 +68,10 @@ defmodule VotingSystem.VoterSupervisor do
 
     # Wait for all the voters to be added, then have everyone update the list of active voters.
     update_voters()
-    result
+    {:ok, "#{count} voter(s) added to the system.", result}
   end
+
+  def start_automated_voters(_), do: {:ok, "No new voters have been added."}
 
   @doc """
   Fetches the process IDs of all active voters in the system.
@@ -89,6 +91,14 @@ defmodule VotingSystem.VoterSupervisor do
   """
   def get_active_voter_ids() do
     Enum.map(get_active_voter_pids(), fn pid -> Enum.at(Registry.keys(@voterRegistry, pid), 0) end)
+  end
+
+  @doc """
+  Checks if a voter ID is registered with the system. This has the benefit of exiting
+  early if the voter ID is found.
+  """
+  def has_active_voter_id?(id) do
+    Enum.find(get_active_voter_pids(), nil, fn pid -> Enum.at(Registry.keys(@voterRegistry, pid), 0) == id end) != nil
   end
 
   @doc """

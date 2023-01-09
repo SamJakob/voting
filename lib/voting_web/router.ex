@@ -39,7 +39,12 @@ defmodule VotingWeb.Router do
      pipe_through :api
 
      get "/refresh", ApiController, :refresh
-     post "/spawn/:candidates", ApiController, :spawn
+     post "/spawn/:count", ApiController, :spawn
+
+     post "/propose", ApiController, :propose
+
+     post "/terminate", ApiController, :terminate_all
+     post "/terminate/:id", ApiController, :terminate
    end
 
   # Enables LiveDashboard only for development

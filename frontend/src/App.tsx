@@ -1,23 +1,34 @@
-import { useEffect } from "react";
-import React from "react";
-import {MenuItem} from "@blueprintjs/core";
-import { BrowserRouter, Link, Routes, Route } from "react-router-dom";
-import SessionBuilder from "./components/Dialog/SessionBuilder";
-import { ItemPredicate, ItemRenderer, Select2 } from "@blueprintjs/select";
-import {Key} from "react";
-import {useState} from "react";
-import { Spinner, H1, H2, Button, Label, Callout, H5 } from "@blueprintjs/core";
-const style = { display: "flex", gap: "8px", padding: "8px" };
-import {Policy, VoterData, Voter} from "./utils/types";
+import 'normalize.css';
+import '@blueprintjs/core/lib/css/blueprint.css';
+import '@blueprintjs/icons/lib/css/blueprint-icons.css';
+import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
+
+import logo from './assets/logo.svg';
+import logoCropped from './assets/logo_cropped.svg';
+
+import { useEffect } from 'react';
+import React from 'react';
+import { Alignment, Classes, HTMLTable, Icon, MenuItem, Navbar } from '@blueprintjs/core';
+import { BrowserRouter, Link, Routes, Route, useNavigate } from 'react-router-dom';
+import NetworkSetupWizard from './components/Dialog/NetworkSetupWizard';
+import { ItemPredicate, ItemRenderer, Select2 } from '@blueprintjs/select';
+import { useState } from 'react';
+import { Spinner, H1, H2, Button, Callout, H5 } from '@blueprintjs/core';
+
+const style = { display: 'flex', gap: '8px', padding: '8px' };
+import { Policy, VoterData, Voter } from './utils/types';
 import { v4 as uuid } from 'uuid';
-import 'normalize.css'
-import '@blueprintjs/core/lib/css/blueprint.css'
-import '@blueprintjs/icons/lib/css/blueprint-icons.css'
-import 'bootstrap/dist/css/bootstrap.min.css'
-import "@blueprintjs/popover2/lib/css/blueprint-popover2.css"
-import {refreshDash} from "./utils/networkRequests";
-
-
+import { defaultPolicies, getDescriptionForCoordinates } from './data/policies';
+import { PromiseButton } from './components/PromiseButton';
+import {
+    performThenNotify,
+    refreshData,
+    spawnVoters,
+    killAllVoters,
+    killVoter,
+    propose,
+} from './utils/networkRequests';
+import ProcessWarning from './components/Callout/ProcessWarning';
 
 function App() {
     /**
@@ -33,173 +44,328 @@ function App() {
      * interfering with development resources.
      * */
     useEffect(() => {
-        if (window.location.pathname === "/") {
-            window.location.replace("/app");
+        if (window.location.pathname === '/') {
+            window.location.replace('/app');
         }
     }, []);
 
     return (
         <BrowserRouter basename="app">
-            <nav style={style}>
-                <Link to="/">Home</Link>
-                <Link to="/settings">Settings Page</Link>
-                <br />
-            </nav>
+            <Navbar fixedToTop className={'bp4-navbar'}>
+                <Navbar.Group align={Alignment.LEFT} className={'bp4-navbar-group'}>
+                    <Navbar.Heading>
+                        <img src={logoCropped} role={'presentation'} alt={'VotePaxos'} style={{ height: '30px' }} />
+                    </Navbar.Heading>
+                </Navbar.Group>
+                <Navbar.Group className={'vp-navigation-buttons-wrapper'}>
+                    <Navbar.Divider />
+                    <NavigationButtons />
+                </Navbar.Group>
+            </Navbar>
             <Routes>
                 <Route path="/" element={<HomePage />} />
-                <Route path="settings" element={<SettingsPage />} />
+                <Route path="statistics" element={<StatisticsPage />} />
             </Routes>
         </BrowserRouter>
     );
 }
 
-function SettingsPage() {
+function NavigationButtons() {
+    const navigate = useNavigate();
+
+    return (
+        <>
+            <Button onClick={() => navigate('/')} className={Classes.MINIMAL} icon="home" text="Home" />
+            <Button
+                onClick={() => navigate('/statistics')}
+                className={Classes.MINIMAL}
+                icon="dashboard"
+                text="Statistics"
+            />
+        </>
+    );
+}
+
+function StatisticsPage() {
     return (
         <div>
+            <div className={'vp-navbar-spacer'} />
             <ul>
-                <Spinner/>
+                <Spinner />
             </ul>
         </div>
     );
 }
 
 function HomePage() {
-    const [session, setSession] = useState<boolean>(false)
-    const [voterData, setVoterData] = useState<VoterData>()
+    const [voterData, setVoterData] = useState<VoterData | undefined>();
     const [forceIsOpen, setForceIsOpen] = useState(false);
-    const unique_id = uuid();
+    const [networkInitialized, setNetworkInitialized] = useState(false);
+    const [id] = useState(uuid());
 
-    const Policies: Policy[] = [
-        { title: "Universal healthcare", coordinates: [-9, -9] },
-        { title: "Carbon tax", coordinates: [-8, -8] },
-        { title: "State-funded insurance system with private hospitals", coordinates: [-6, 6] },
-        { title: "Free public education", coordinates: [-9, -7] },
-    ].map((f,index) => ({ ...f, rank: index + 1 }));
-
-    const filterPolicy: ItemPredicate<Policy> = (query, policy, _index, exactMatch) => {
-        const normalizedTitle =policy.title.toLowerCase();
-        const normalizedQuery = query.toLowerCase();
-
-        if (exactMatch) {
-            return normalizedTitle === normalizedQuery;
-        } else {
-            return `${policy.rank}. ${normalizedTitle}`.indexOf(normalizedQuery) >= 0;
-        }
-    };
-
-    const renderPolicy: ItemRenderer<Policy> = (policy, { handleClick, handleFocus, modifiers, query }) => {
-        if (!modifiers.matchesPredicate) {
-            return null;
-        }
-        return (
-            <MenuItem
-                active={modifiers.active}
-                disabled={modifiers.disabled}
-                key={policy.rank}
-                label={policy.coordinates.toString()}
-                onClick={handleClick}
-                onFocus={handleFocus}
-                roleStructure="listoption"
-                text={`${policy.rank}. ${policy.title}`}
-            />
-        );
-    };
-
-    const PolicySelect: React.FC = () => {
-        const [selectedPolicy, setSelectedPolicy] = React.useState<Policy | undefined>();
-        return (
-            <Select2<Policy>
-                items={Policies}
-                itemPredicate={filterPolicy}
-                itemRenderer={renderPolicy}
-                noResults={<MenuItem disabled={true} text="No results." roleStructure="listoption" />}
-                onItemSelect={setSelectedPolicy}
-            >
-                <Button text={selectedPolicy?.title} rightIcon="double-caret-vertical" placeholder="Select a film" />
-            </Select2>
-        );
-    };
-
-    function VotersListItem(voter) {
-        console.log("VOTERS List Item")
-        console.log(voter)
-        return (
-            <tr key={voter.id}>
-                <td style={{textAlign: "center"}}>{voter.voter.id}</td>
-                <td style={{textAlign: "center"}}>{voter.voter.is_simulated? "Simulated": "Human"}</td>
-                <td style={{textAlign: "center"}}>{voter.voter.simulation.coordinates[0]}, {voter.voter.simulation.coordinates[1]}</td>
-                <td style={{textAlign: "center"}}>{voter.voter.simulation.tolerance}</td>
-            </tr>
-        )
+    function refreshDash(butFirst?: Function) {
+        return async () => {
+            let returnValue;
+            if (butFirst) returnValue = await butFirst();
+            setVoterData(await refreshData());
+            return returnValue;
+        };
     }
 
+    const filterPolicy: ItemPredicate<Policy> = (query, policy, _index, exactMatch) => {
+        const normalizedTitle = policy.description.toLowerCase();
+        const normalizedQuery = query.toLowerCase();
+
+        if (exactMatch) {
+            return normalizedTitle === normalizedQuery;
+        } else {
+            return `${normalizedTitle}`.indexOf(normalizedQuery) >= 0;
+        }
+    };
+
+    const renderPolicy: (selectedPolicy?: Policy) => ItemRenderer<Policy> =
+        (selectedPolicy) =>
+        (policy, { handleClick, handleFocus, modifiers }) => {
+            if (!modifiers.matchesPredicate) {
+                return null;
+            }
+            return (
+                <MenuItem
+                    active={selectedPolicy == policy ? modifiers.active : false}
+                    disabled={modifiers.disabled}
+                    key={policy.description}
+                    label={policy.coordinates.toString()}
+                    onClick={handleClick}
+                    onFocus={handleFocus}
+                    roleStructure="listoption"
+                    text={`${policy.description}`}
+                />
+            );
+        };
+
+    const PolicySelect: React.FC = () => {
+        const [selectedPolicy, setSelectedPolicy] = React.useState<Policy | undefined>();
+
+        return (
+            <>
+                <div style={{ margin: 20, width: '100%' }}>
+                    <Select2<Policy>
+                        fill={true}
+                        items={defaultPolicies}
+                        itemPredicate={filterPolicy}
+                        itemRenderer={renderPolicy(selectedPolicy)}
+                        noResults={<MenuItem disabled={true} text="No results!" roleStructure="listoption" />}
+                        onItemSelect={setSelectedPolicy}>
+                        <Button
+                            fill={true}
+                            text={selectedPolicy ? selectedPolicy.description : '(No selection)'}
+                            rightIcon="caret-down"
+                            placeholder="Select a policy..."
+                        />
+                    </Select2>
+                </div>
+                <PromiseButton
+                    disabled={!selectedPolicy}
+                    intent={'primary'}
+                    onClick={performThenNotify(
+                        refreshDash(async () => await propose(selectedPolicy!)),
+                        'Successfully proposed your selected policy!',
+                        'There was a problem proposing your selected policy.'
+                    )}>
+                    Propose
+                </PromiseButton>
+                <div style={{ margin: 10 }}></div>
+            </>
+        );
+    };
+
+    function VotersListItem({ voter }: { voter: Voter }) {
+        return (
+            <tr>
+                <td style={{ textAlign: 'left' }}>{voter.id}</td>
+                <td style={{ textAlign: 'center' }}>
+                    {voter.id == id ? 'Human (You)' : voter.is_simulated ? 'Simulated' : 'Human'}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                    {voter.simulation.coordinates[0]}, {voter.simulation.coordinates[1]}
+                </td>
+                <td style={{ textAlign: 'left' }}>{getDescriptionForCoordinates(voter.simulation.coordinates)}</td>
+                <td style={{ textAlign: 'center' }}>{voter.simulation.tolerance}</td>
+                <td style={{ textAlign: 'right' }}>
+                    <PromiseButton
+                        icon="cross"
+                        intent={'danger'}
+                        onClick={performThenNotify(
+                            refreshDash(async () => await killVoter(voter.id)),
+                            'Terminated voter.'
+                        )}>
+                        Kill
+                    </PromiseButton>
+                </td>
+            </tr>
+        );
+    }
 
     return (
-        <div className={"bp4-dark"}>
-            <div className={"center-con"} style={{display: "flex", alignItems: "center"}}>
-                <div className={"home-section"}>
-                    {voterData?.voters.length > 0 ?
+        <div className={'bp4-dark'}>
+            <div className={'center-con'} style={{ display: 'flex', alignItems: 'center' }}>
+                <div className={'home-section'}>
+                    {(voterData?.voters ?? []).length > 0 ? (
                         <>
-                            <div style={{display: "flex", alignItem: "center", flexDirection: "row"}}>
-                                <Callout style={{width: 300}}>
-                                    <div style={{display: "flex", alignItem: "center", flexDirection: "column", justifyContent: "center", alignItems: "center"}}>
-                                        <H5 style={{margin: 15}}>Propose a policy to the session</H5>
-                                        <div style={{margin: 15}}></div>
-                                        <PolicySelect/>
-                                        <div style={{margin: 20}}></div>
-                                        <Button intent={"primary"}>Propose</Button>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    flexDirection: 'row',
+                                }}>
+                                <Callout style={{ width: 300 }}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                        }}>
+                                        <H5 style={{ margin: 15 }}>Propose a policy to the session</H5>
+                                        <PolicySelect />
                                     </div>
                                 </Callout>
-                                <div style={{margin: 50}}></div>
-                                <div style={{display: "flex", alignItem: "center", flexDirection: "column"}}>
-                                <table className="bp4-html-table bp4-html-table-striped table">
-                                    <thead>
-                                    <tr>
-                                        <th>Process ID</th>
-                                        <th>Type</th>
-                                        <th>Coordinates</th>
-                                        <th>Tolerance</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <>
-                                        {voterData!.voters.map(function (voter: {voter: Voter}) {
-                                            return (
-                                                <>
-                                                    <VotersListItem voter={voter}/>
-                                                </>
-                                            );
-                                        })}
-                                    </>
-                                    </tbody>
-                                </table>
-                                    <div style={{margin: 20}}></div>
-                                        <Callout>
-                                            <div style={{display: "flex", alignItem: "left", flexDirection: "row", justifyContent: "left", gap: 30}}>
-                                                <Spinner intent={"success"} size={25}/>
-                                                <H5 style={{marginTop: 6}}>Session is active</H5>
-                                                <Button intent={"danger"}>Kill All Voters</Button>
-                                            </div>
-                                        </Callout>
+                                <div style={{ margin: 50 }}></div>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        flexDirection: 'column',
+                                    }}>
+                                    <ProcessWarning processCount={voterData!.voters.length} />
+
+                                    <div className={'vp-table-scrollable-wrapper'}>
+                                        <HTMLTable
+                                            striped
+                                            condensed
+                                            bordered
+                                            interactive
+                                            className={'vp-table-scrollable'}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Process (Voter) ID</th>
+                                                    <th>Type</th>
+                                                    <th>Coordinates</th>
+                                                    <th>Description</th>
+                                                    <th>Tolerance</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {voterData!.voters.map(function (voter: Voter) {
+                                                    return <VotersListItem key={voter.id} voter={voter} />;
+                                                })}
+                                            </tbody>
+                                        </HTMLTable>
+                                    </div>
+
+                                    <div style={{ margin: 20 }}></div>
+                                    <Callout>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                alignContent: 'center',
+                                                flexDirection: 'row',
+                                                justifyContent: 'center',
+                                                gap: 30,
+                                                marginTop: '5px',
+                                            }}>
+                                            <Spinner
+                                                intent={
+                                                    voterData!.voters.length >= 3
+                                                        ? voterData!.voters.length >= 5
+                                                            ? 'success'
+                                                            : 'warning'
+                                                        : 'danger'
+                                                }
+                                                size={25}
+                                            />
+                                            <H5 style={{ marginTop: 2 }}>
+                                                You are connected to{' '}
+                                                {voterData!.voters.length >= 3
+                                                    ? voterData!.voters.length >= 5
+                                                        ? 'an active'
+                                                        : 'a potentially degraded'
+                                                    : 'an inactive'}{' '}
+                                                session with {voterData!.voters.length} process(es).
+                                            </H5>
+                                        </div>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                alignContent: 'center',
+                                                justifyContent: 'center',
+                                                gap: 10,
+                                                marginTop: '20px',
+                                                marginBottom: '5px',
+                                            }}>
+                                            <PromiseButton icon="refresh" onClick={refreshDash()}>
+                                                Refresh
+                                            </PromiseButton>
+                                            <PromiseButton
+                                                outlined
+                                                icon="add"
+                                                intent={'success'}
+                                                onClick={performThenNotify(
+                                                    refreshDash(async () => await spawnVoters(1)),
+                                                    'Successfully spawned a new voter.'
+                                                )}>
+                                                Spawn Simulated Voter
+                                            </PromiseButton>
+                                            <Button icon="add" intent={'success'} onClick={() => setForceIsOpen(true)}>
+                                                Spawn Multiple Simulated Voters
+                                            </Button>
+                                            <PromiseButton
+                                                icon="graph-remove"
+                                                intent={'danger'}
+                                                onClick={performThenNotify(async () => {
+                                                    setNetworkInitialized(false);
+                                                    await refreshDash(killAllVoters)();
+                                                }, 'All processes have been successfully terminated.')}>
+                                                Destroy Network
+                                            </PromiseButton>
+                                        </div>
+                                    </Callout>
                                 </div>
                             </div>
                         </>
-                    :
+                    ) : (
                         <>
-                            <H1>A distributed voting system implemented in Elixir using Abortable Paxos</H1>
-                            <H2 style={{marginTop: 20, marginBottom: 30}}>Please press start to begin a session</H2>
-                            <Button style={{width: "100px", height: "20px", marginBottom: "50px"}} onClick={() => setForceIsOpen(true)}>Start</Button>
+                            <img src={logo} alt="VotePaxos" role="presentation" />
+                            <H1>Welcome to VotePaxos</H1>
+                            <p>A live distributed voting system implemented in Elixir using Abortable Paxos.</p>
+                            <H2 style={{ marginTop: 20, marginBottom: 30 }}>
+                                Please press &lsquo;Begin Setup&rsquo; to set up your network!
+                            </H2>
+                            <Button
+                                style={{
+                                    width: '130px',
+                                    height: '20px',
+                                    marginBottom: '50px',
+                                }}
+                                onClick={() => setForceIsOpen(true)}
+                                rightIcon="circle-arrow-right">
+                                Begin Setup
+                            </Button>
                         </>
-
-                    }
-
-
-
+                    )}
                 </div>
             </div>
-            {forceIsOpen &&
-                <SessionBuilder dialogIsOpen={forceIsOpen} setDialogIsOpen={setForceIsOpen} setSession={setSession} setVoterData={setVoterData}/>
-            }
+            {forceIsOpen && (
+                <NetworkSetupWizard
+                    id={id}
+                    dialogIsOpen={forceIsOpen}
+                    setDialogIsOpen={setForceIsOpen}
+                    setVoterData={setVoterData}
+                    setNetworkInitialized={setNetworkInitialized}
+                    isFirstTime={!networkInitialized}
+                />
+            )}
         </div>
     );
 }
