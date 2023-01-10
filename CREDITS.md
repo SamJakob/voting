@@ -1,2 +1,3 @@
 - https://bpaulino.com/entries/modern-webapps-with-elixir-phoenix-typescript-react
 - https://levelup.gitconnected.com/genserver-dynamicsupervisor-and-registry-the-elixir-triad-to-manage-processes-a65d4c3351c1
+- https://medium.com/software-fast-radius/wiring-up-phoenix-channels-with-react-hooks-921aac29f0ff

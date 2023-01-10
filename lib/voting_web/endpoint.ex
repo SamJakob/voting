@@ -10,7 +10,9 @@ defmodule VotingWeb.Endpoint do
     signing_salt: "ZzPdLlUb"
   ]
 
-  socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]
+  socket "/api/realtime", VotingWeb.UserSocket,
+    websocket: true,
+    longpoll: false
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -34,6 +36,10 @@ defmodule VotingWeb.Endpoint do
   plug Phoenix.LiveDashboard.RequestLogger,
     param_key: "request_logger",
     cookie_key: "request_logger"
+
+  # Phoenix LiveView
+  # https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html
+  #  socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]

@@ -31,6 +31,9 @@ defmodule VotingSystem.Voter do
 
     # Stores the cookie that is needed when altering the Voter's Paxos delegate configuration.
     field :paxos_cookie, any(), default: nil
+
+    # The current instance number for this process.
+    field :instance_number, any(), default: 0
   end
 
   ## GenServer API
@@ -61,7 +64,9 @@ defmodule VotingSystem.Voter do
   The server will restart if any reason other than :normal is given.
   """
   def stop(voter_id, reason) do
-    voter_id |> via_tuple() |> GenServer.stop(reason)
+    voter_triple = voter_id |> via_tuple()
+    voter_triple |> GenServer.call({:stop})
+    voter_triple |> GenServer.stop(reason)
   end
 
   ## Client Requests
@@ -70,7 +75,7 @@ defmodule VotingSystem.Voter do
   Propose a policy via voter_id.
   """
   def propose(voter_id, policy) do
-    voter_id |> via_tuple |> GenServer.call({:propose, policy})
+    voter_id |> via_tuple |> GenServer.call({:propose, policy}, 10_000)
   end
 
   @doc """
@@ -98,7 +103,11 @@ defmodule VotingSystem.Voter do
     # Create a secure Paxos cookie, start Paxos and augment the state with the Paxos cookie
     # (assuming that Paxos start successfully).
     paxos_cookie = Helpers.Crypto.base64_secure_token()
-    paxos = Paxos.start(state.id, state.active_voters, fn ballot -> should_accept(state, ballot) end, paxos_cookie)
+    paxos = Paxos.start(
+      state.id, state.active_voters,
+      fn ballot, instance_number -> should_accept(state, ballot, instance_number) end,
+      paxos_cookie
+    )
 
     if is_pid(paxos) do
       Logger.info("Initialized Voter process: #{state.id} [#{is_live_voter_string(state)}]")
@@ -109,8 +118,41 @@ defmodule VotingSystem.Voter do
   end
 
   @impl true
-  def handle_call({:propose, policy}, _from, state) do
+  def handle_cast({:notify_instance_number, instance_number}, state) do
+    # Increment the instance number if we notice a higher one.
+    # We needn't exceed the known instance number as we'll do that on propose.
+    if instance_number > state.instance_number do
+      %{state | instance_number: instance_number}
+    else
+      state
+    end
 
+    {:noreply, state}
+  end
+
+  defp attempt_proposal(paxos, instance_number, policy, timeout) do
+    time_start = Time.utc_now()
+    result = Paxos.propose(paxos, instance_number, policy, timeout)
+
+    if result == {:abort} do
+      remaining_timeout = timeout - Time.diff(Time.utc_now(), time_start, :millisecond)
+
+      if remaining_timeout > 0 do
+        attempt_proposal(paxos, instance_number, policy, remaining_timeout)
+      else
+        result
+      end
+    else
+      result
+    end
+  end
+
+  @impl true
+  def handle_call({:propose, policy}, _from, state) do
+    # Propose the ballot/policy to the active voters with a timeout of 8,000ms (8 seconds).
+    state = %{state | instance_number: state.instance_number + 1}
+    result = attempt_proposal(state.paxos, state.instance_number, policy, 8_000)
+    {:reply, result, state}
   end
 
   @impl true
@@ -145,6 +187,15 @@ defmodule VotingSystem.Voter do
     end
   end
 
+  @impl true
+  def handle_call({:stop}, _from, state) do
+    # Terminate Paxos and clear the state.
+    Process.exit(state.paxos, :kill)
+    state = %{state | paxos: nil, paxos_cookie: nil}
+
+    {:reply, :ok, state}
+  end
+
   ## Private Helper Functions
 
   # Checks if the current voter is a live voter (as opposed to an automated/simulated voter).
@@ -163,7 +214,19 @@ defmodule VotingSystem.Voter do
   # should_accept for simulated voters. This checks if the distance between the policy's coordinates
   # and the voter's own coordinates falls within its tolerance for varied policies. Returns true if
   # it does, indicating that the policy should be accepted.
-  defp should_accept(initial_state, policy) when initial_state.simulation_parameters != nil do
+  defp should_accept(initial_state, policy, instance_number) when initial_state.simulation_parameters != nil do
+    # First, notify ourselves of the higher ballot number.
+    (initial_state.id |> via_tuple |> GenServer.cast({:notify_instance_number, instance_number}))
+
+#    IO.puts(inspect initial_state.simulation_parameters.coordinates)
+#    IO.puts(inspect policy(policy, :coordinates))
+#    IO.puts(inspect initial_state.simulation_parameters.tolerance)
+#    IO.puts(inspect (euclidean_distance(
+#      initial_state.simulation_parameters.coordinates,
+#      policy(policy, :coordinates)
+#    ) <= initial_state.simulation_parameters.tolerance))
+
+    # Then, decide whether we want to accept this ballot.
     euclidean_distance(
       initial_state.simulation_parameters.coordinates,
       policy(policy, :coordinates)
@@ -173,7 +236,7 @@ defmodule VotingSystem.Voter do
   # Fallback for should_accept to reject policies. Currently this has the effect of preventing
   # humans from voting on policies, but that could be later modified depending on the functionality
   # of the application.
-  defp should_accept(_, _), do: false
+  defp should_accept(state, _, _), do: {state, false}
 
   # Computes the :via tuple used to refer to a given Voter process in the global voter registry.
   defp via_tuple(voter_id), do: {:via, Registry, {@voterRegistry, voter_id}}

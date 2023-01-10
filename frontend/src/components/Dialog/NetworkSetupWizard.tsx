@@ -15,11 +15,12 @@ import {
     Intent,
     Icon,
 } from '@blueprintjs/core';
-import { v4 as uuid } from 'uuid';
-import { Dispatch, SetStateAction, useState } from 'react';
+import { Dispatch, SetStateAction, useContext, useState } from 'react';
 import classNames from 'classnames';
 import { Classes as Popover2Classes, Popover2 } from '@blueprintjs/popover2';
-import { performThenNotify, refreshData, spawnVoters } from '../../utils/networkRequests';
+import { performThenNotify, spawnVoters } from '../../utils/networkRequests';
+import { connectToNetwork } from '../../utils/socketRequests';
+import { SocketContext } from '../../realtime/SocketContext';
 
 export interface IMultistepDialogExampleState {
     autoFocus: boolean;
@@ -36,20 +37,17 @@ export interface IMultistepDialogExampleState {
 
 // @ts-ignore
 export default function NetworkSetupWizard({
-    id,
     dialogIsOpen,
     setDialogIsOpen,
-    setVoterData,
-    setNetworkInitialized,
+    setNetworkInitialized: setConnectedToNetwork,
+    refreshDash,
+    voterChannel,
     isFirstTime = true,
 }) {
     const [loading, setLoading] = useState<boolean>(false);
-    // const [policy, setPolicy] = useState<>()
     const [simulatedVoters, setSimulatedVoters] = useState<number>(5);
 
-    // do we need to fetch anything?
-    // useEffect(() => {
-    // }, []);
+    const { socketId: id } = useContext(SocketContext);
 
     const state: IMultistepDialogExampleState = {
         autoFocus: true,
@@ -78,10 +76,17 @@ export default function NetworkSetupWizard({
             async () => {
                 try {
                     setLoading(true);
+
                     let result = await spawnVoters(simulatedVoters);
-                    setVoterData(await refreshData());
+
+                    if (isFirstTime) {
+                        console.log(await connectToNetwork(voterChannel));
+                        setConnectedToNetwork(true);
+                    }
+
+                    await refreshDash()();
                     setDialogIsOpen(false);
-                    setNetworkInitialized(true);
+
                     return result;
                 } catch (ex) {
                     setLoading(false);

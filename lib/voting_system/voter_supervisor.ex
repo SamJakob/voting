@@ -6,7 +6,7 @@ defmodule VotingSystem.VoterSupervisor do
 
   # The possible values for the 'tolerance' of a voter to policies.
   # Higher tolerance means more likely to accept policies that are not their own.
-  @simTolerance 3..6
+  @simTolerance 7..14
 
   @voterRegistry :voter_registry
 
@@ -39,6 +39,14 @@ defmodule VotingSystem.VoterSupervisor do
   end
 
   ##################################################################################
+
+  @doc """
+  Convenience method that calls start_voter/2 by looking up the currently active voter
+  IDs in the system and appending this voter ID to it.
+  The supervisor will then internally automatically update the other voters to include\
+  this one too.
+  """
+  def start_voter(voter_id), do: start_child([voter_id | get_active_voter_ids()], voter_id)
 
   @doc """
   Starts a process for a human (live) voter.
@@ -99,6 +107,17 @@ defmodule VotingSystem.VoterSupervisor do
   """
   def has_active_voter_id?(id) do
     Enum.find(get_active_voter_pids(), nil, fn pid -> Enum.at(Registry.keys(@voterRegistry, pid), 0) == id end) != nil
+  end
+
+  @doc """
+  Looks up a voter by the specified ID and returns its PID.
+  """
+  def get_voter_by_id(id) do
+    with {result, nil} when is_pid(result) <- Enum.at(Registry.lookup(@voterRegistry, id), 0) do
+      result
+    else
+      _ -> nil
+    end
   end
 
   @doc """

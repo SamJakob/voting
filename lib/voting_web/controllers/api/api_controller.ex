@@ -1,21 +1,24 @@
 defmodule VotingWeb.ApiController do
   use VotingWeb, :controller
-  import VotingSystem.Policy
 
-  alias VotingSystem.{Voter, VoterSupervisor}
+  require UUID
+  alias VotingSystem.VoterSupervisor
+
+  # Used by the client to request an ID.
+  def preflight(conn, _params) do
+    # Generate a unique ID as a string.
+    id = UUID.uuid4()
+
+    # Allocate an atom for the ID.
+    _ = String.to_atom(id)
+
+    # Return the originally generated ID.
+    json(conn, id)
+  end
 
   def refresh(conn, _params) do
     active_voters = VoterSupervisor.get_active_voters()
     json(conn, %{voters: active_voters})
-  end
-
-  def propose(conn, %{"coordinates" => coordinates_raw, "description" => description}) do
-    policy(
-      coordinates: {Enum.at(coordinates_raw, 0), Enum.at(coordinates_raw, 1)},
-      description: description
-    )
-
-    json(conn, "(TODO) Dispatched your policy proposal: #{description}")
   end
   
   def spawn(conn, %{"count" => count}) do

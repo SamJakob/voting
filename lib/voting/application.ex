@@ -10,6 +10,8 @@ defmodule Voting.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      # (Task Supervisor) Start the Web Application Task Supervisor.
+      {Task.Supervisor, name: VotingWeb.TaskSupervisor},
       # (Database) Start the Ecto repository
       # Voting.Repo,
       # (Logging and Telemetry) Start the Telemetry supervisor

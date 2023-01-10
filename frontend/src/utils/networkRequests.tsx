@@ -2,8 +2,8 @@ import axios from 'axios';
 import { VPToaster } from './toaster';
 import { Policy } from './types';
 
-export async function propose(policy: Policy) {
-    return (await axios.post(`/api/propose`, policy)).data;
+export async function executePreflight() {
+    return (await axios.post(`/api/preflight`)).data;
 }
 
 export async function spawnVoters(voters: number) {
@@ -21,6 +21,8 @@ export async function killAllVoters() {
 export async function refreshData() {
     return (await axios.get('/api/refresh')).data;
 }
+
+///////////////////////////////////////////////////////////////////////////////
 
 class NotifyError extends Error {
     message: string;
@@ -82,6 +84,8 @@ export function performThenNotify(
 
             if (ex instanceof NotifyError) {
                 message = ex.message;
+            } else if (ex.response && ex.response.data) {
+                message = ex.response.data;
             } else message = messageOnFail;
 
             VPToaster.show({

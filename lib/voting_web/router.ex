@@ -38,6 +38,8 @@ defmodule VotingWeb.Router do
    scope "/api", VotingWeb do
      pipe_through :api
 
+     post "/preflight", ApiController, :preflight
+
      get "/refresh", ApiController, :refresh
      post "/spawn/:count", ApiController, :spawn
 
