@@ -15,7 +15,7 @@ import { ItemPredicate, ItemRenderer, Select2 } from '@blueprintjs/select';
 import { useState } from 'react';
 import { Spinner, H1, H2, Button, Callout, H5 } from '@blueprintjs/core';
 
-import { Policy, Voter } from './utils/types';
+import {ConcludedPolicy, Policy, Voter} from './utils/types';
 import { defaultPolicies, getDescriptionForCoordinates } from './data/policies';
 import { PromiseButton } from './components/PromiseButton';
 import { performThenNotify, spawnVoters, killAllVoters, killVoter, executePreflight } from './utils/networkRequests';
@@ -101,7 +101,7 @@ function App() {
                 </Navbar>
                 <Routes>
                     <Route path="/" element={<HomePage refreshDash={refreshDash} />} />
-                    <Route path="statistics" element={<StatisticsPage />} />
+                    <Route path="history" element={<HistoryPage />} />
                 </Routes>
             </BrowserRouter>
         </SocketProvider>
@@ -115,21 +115,74 @@ function NavigationButtons() {
         <>
             <Button onClick={() => navigate('/')} className={Classes.MINIMAL} icon="home" text="Home" />
             <Button
-                onClick={() => navigate('/statistics')}
+                onClick={() => navigate('/history')}
                 className={Classes.MINIMAL}
-                icon="dashboard"
-                text="Statistics"
+                icon="history"
+                text="History"
             />
         </>
     );
 }
 
-function StatisticsPage() {
+function HistoryPage() {
+    const [concluded_policies, setConcludedPolicies] = useState([])<ConcludedPolicy[]>;
+    const { socketId: id } = useContext(SocketContext);
+
+    useEffect(() => {
+    //     Fetch History requests here
+    },[])
+
+    function PolicyHistoryListItem({ policy, currentId }: { policy: ConcludedPolicy; currentId: string }) {
+        return (
+            <tr>
+                <td style={{ textAlign: 'left' }}>{policy.id}</td>
+                <td style={{ textAlign: 'left' }}>{policy.title}</td>
+                <td style={{ textAlign: 'left' }}>{policy.description}</td>
+                <td style={{ textAlign: 'left' }}>{policy.status.toString()}</td>
+            </tr>
+        );
+    }
+
     return (
         <div>
             <div className={'vp-navbar-spacer'} />
             <ul>
-                <Spinner />
+                {concluded_policies.length > 0 ?
+                    <>
+                        <HTMLTable striped condensed bordered interactive className={'vp-table-scrollable'}>
+                            <thead>
+                            <tr>
+                                <th>Policy ID</th>
+                                <th>Policy Title</th>
+                                <th>Policy Coordinates</th>
+                                <th>Status</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {[...concluded_policies]
+                                .sort((b, a) => {
+                                    // Epoch time
+                                    if (a.timestamp < b.timestamp) {
+                                        return -1;
+                                    }
+                                    if (a.timestamp > b.timestamp ) {
+                                        return 1;
+                                    }
+                                    return 0;
+                                })
+                                .map(function (con_pol: ConcludedPolicy) {
+                                    return <PolicyHistoryListItem key={con_pol.id} policy={con_pol} currentId={id} />;
+                                })}
+                            </tbody>
+                        </HTMLTable>
+                    </>
+                :
+                    <>
+                        <H1>No policies have been concluded yet</H1>
+                    </>
+
+                }
+
             </ul>
         </div>
     );

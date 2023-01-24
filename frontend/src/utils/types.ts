@@ -12,3 +12,11 @@ export interface Voter {
     is_simulated: boolean;
     simulation: { coordinates: number[]; tolerance: number };
 }
+
+export interface ConcludedPolicy {
+    timestamp: string;
+    id: string;
+    title: string;
+    description: string;
+    status: boolean;
+}

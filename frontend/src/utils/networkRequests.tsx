@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { VPToaster } from './toaster';
-import { Policy } from './types';
 
 export async function executePreflight() {
     return (await axios.post(`/api/preflight`)).data;
@@ -20,6 +19,10 @@ export async function killAllVoters() {
 
 export async function refreshData() {
     return (await axios.get('/api/refresh')).data;
+}
+
+export async function fetchHistory() {
+    return (await axios.get('api/history')).data;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
