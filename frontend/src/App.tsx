@@ -18,7 +18,14 @@ import { Spinner, H1, H2, Button, Callout, H5 } from '@blueprintjs/core';
 import {ConcludedPolicy, Policy, Voter} from './utils/types';
 import { defaultPolicies, getDescriptionForCoordinates } from './data/policies';
 import { PromiseButton } from './components/PromiseButton';
-import { performThenNotify, spawnVoters, killAllVoters, killVoter, executePreflight } from './utils/networkRequests';
+import {
+    performThenNotify,
+    spawnVoters,
+    killAllVoters,
+    killVoter,
+    executePreflight,
+    refreshHistory
+} from './utils/networkRequests';
 import ProcessWarning from './components/Callout/ProcessWarning';
 import { SocketContext, SocketProvider } from './realtime/SocketContext';
 import { Channel } from 'phoenix';
@@ -129,8 +136,12 @@ function HistoryPage() {
     const { socketId: id } = useContext(SocketContext);
 
     useEffect(() => {
-    //     Fetch History requests here
+        refreshHistory().then(p => setConcludedPolicies(p))
     },[])
+
+    function refresh() {
+        refreshHistory().then(p => setConcludedPolicies(p))
+    }
 
     function PolicyHistoryListItem({ policy, currentId }: { policy: ConcludedPolicy; currentId: string }) {
         return (
@@ -180,9 +191,8 @@ function HistoryPage() {
                     <>
                         <H1>No policies have been concluded yet</H1>
                     </>
-
                 }
-
+                <Button style={{marginTop: 10}}intent={"success"} icon={"refresh"} onClick={() => refresh()}>Refresh</Button>
             </ul>
         </div>
     );
