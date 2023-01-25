@@ -58,6 +58,11 @@ defmodule VotingWeb.UserChannel do
     end
   end
 
+  @impl true
+  def handle_in("get_history", _params, socket) do
+    {:reply, {:ok, Voter.get_history(socket.assigns.voter_id)}, socket}
+  end
+
 #  # Channels can be used in a request/response fashion
 #  # by sending replies to requests from the client
 #  @impl true

@@ -15,8 +15,14 @@ export interface Voter {
 
 export interface ConcludedPolicy {
     timestamp: string;
-    id: string;
-    title: string;
+    status: string;
     description: string;
-    status: boolean;
+    coordinates: string;
+    additionalData?: any;
+}
+
+export function toReadableStatus(status: string) {
+    if (status === 'decision') return 'Passed';
+    if (status === 'timeout') return 'Rejected';
+    return `System (${status})`;
 }

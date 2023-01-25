@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { VPToaster } from './toaster';
-import { ConcludedPolicy } from './types';
 
 export async function executePreflight() {
     return (await axios.post(`/api/preflight`)).data;
@@ -20,30 +19,6 @@ export async function killAllVoters() {
 
 export async function refreshData() {
     return (await axios.get('/api/refresh')).data;
-}
-
-export async function refreshHistory() {
-    ///////////////TESTING///////////////////
-    let policies: ConcludedPolicy[] = [];
-    policies.push({
-        timestamp: '5893240324',
-        id: 'T id',
-        description: 'T description',
-        title: 'T title',
-        status: false,
-    });
-    policies.push({
-        timestamp: '5893240324',
-        id: 'T id 2',
-        description: 'T description',
-        title: 'T title',
-        status: false,
-    });
-    console.log('returning');
-    return policies;
-    ///////////////TESTING///////////////////
-
-    // return (await axios.get('api/history')).data;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

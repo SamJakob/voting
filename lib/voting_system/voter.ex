@@ -233,7 +233,11 @@ defmodule VotingSystem.Voter do
     state = %{state | instance_number: state.instance_number + 1}
     result = attempt_proposal(state.representative, state.instance_number, policy, 8_000)
     # Add the result to history (with timestamp).
-    state = %{state | history: [{DateTime.utc_now() |> DateTime.to_iso8601(), result} | state.history]}
+    state = %{state | history: [%{
+      :timestamp => DateTime.utc_now() |> DateTime.to_iso8601(),
+      :policy => policy,
+      :outcome => result
+    } | state.history]}
     {:reply, result, state}
   end
 

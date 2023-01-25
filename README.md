@@ -50,6 +50,11 @@ VoterSupervisor.start_voter!(:my_voter_2)
 proposal = policy(coordinates: {5, -5}, description: "Free ice cream")
 Voter.propose(:my_voter, proposal)
 
+# You will, naturally, need some kind of delay here whilst Paxos
+# propagates. If the instructions are being copied and pasted, that
+# should be sufficient. Otherwise, `Process.sleep(10_000)` should do
+# the trick.
+
 # (!) Begin Paxos Usage:
 Voter.get_history(:my_voter)
 Voter.get_history(:my_voter_2) # Should match the above

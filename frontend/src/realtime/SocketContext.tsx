@@ -2,16 +2,25 @@ import React, { createContext, useEffect, useState } from 'react';
 import { Channel, Socket } from 'phoenix';
 import { Spinner } from '@blueprintjs/core';
 
-const SocketContext = createContext<{ socket?: Socket; socketId?: string; voterChannel?: Channel }>({
+const SocketContext = createContext<{
+    socket?: Socket;
+    socketId?: string;
+    voterChannel?: Channel;
+    connectedToNetwork?: boolean;
+    setConnectedToNetwork?: React.Dispatch<React.SetStateAction<boolean>>;
+}>({
     socket: undefined,
     socketId: undefined,
     voterChannel: undefined,
+    connectedToNetwork: false,
+    setConnectedToNetwork: undefined,
 });
 
 const SocketProvider = ({ id, children }: { id: string; children: any }) => {
     const [socket, setSocket] = useState<Socket>();
     const [socketId, setSocketId] = useState<string>();
     const [voterChannel, setVoterChannel] = useState<Channel>();
+    const [connectedToNetwork, setConnectedToNetwork] = useState(false);
 
     useEffect(() => {
         const socket: Socket = new Socket('/api/realtime', { params: { id } });
@@ -43,7 +52,11 @@ const SocketProvider = ({ id, children }: { id: string; children: any }) => {
                 </div>
             </div>
         );
-    return <SocketContext.Provider value={{ socket, socketId, voterChannel }}>{children}</SocketContext.Provider>;
+    return (
+        <SocketContext.Provider value={{ socket, socketId, voterChannel, connectedToNetwork, setConnectedToNetwork }}>
+            {children}
+        </SocketContext.Provider>
+    );
 };
 
 export { SocketContext, SocketProvider };

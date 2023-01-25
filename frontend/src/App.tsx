@@ -18,18 +18,11 @@ import { Spinner, H1, H2, Button, Callout, H5 } from '@blueprintjs/core';
 import { ConcludedPolicy, Policy, Voter } from './utils/types';
 import { defaultPolicies, getDescriptionForCoordinates } from './data/policies';
 import { PromiseButton } from './components/PromiseButton';
-import {
-    performThenNotify,
-    spawnVoters,
-    killAllVoters,
-    killVoter,
-    executePreflight,
-    refreshHistory,
-} from './utils/networkRequests';
+import { performThenNotify, spawnVoters, killAllVoters, killVoter, executePreflight } from './utils/networkRequests';
 import ProcessWarning from './components/Callout/ProcessWarning';
 import { SocketContext, SocketProvider } from './realtime/SocketContext';
 import { Channel } from 'phoenix';
-import { connectToNetwork, leaveNetwork, propose } from './utils/socketRequests';
+import { connectToNetwork, leaveNetwork, propose, getHistory } from './utils/socketRequests';
 import { fetchVoterData, selectSimulatedVoterCount, selectVoterCount, selectVoterData } from './store/voterData';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -52,7 +45,6 @@ function App() {
         }
     }, []);
 
-    // const [voterData, setVoterData] = useState<VoterData | undefined>();
     const [id, setId] = useState();
     const dispatch = useDispatch();
 
@@ -117,34 +109,70 @@ function App() {
 
 function NavigationButtons() {
     const navigate = useNavigate();
+    const { connectedToNetwork } = useContext(SocketContext);
 
     return (
         <>
             <Button onClick={() => navigate('/')} className={Classes.MINIMAL} icon="home" text="Home" />
-            <Button onClick={() => navigate('/history')} className={Classes.MINIMAL} icon="history" text="History" />
+            {connectedToNetwork ? (
+                <Button
+                    onClick={() => navigate('/history')}
+                    className={Classes.MINIMAL}
+                    icon="history"
+                    text="History"
+                />
+            ) : (
+                <></>
+            )}
         </>
     );
 }
 
 function HistoryPage() {
+    const navigate = useNavigate();
+    const { voterChannel, connectedToNetwork } = useContext(SocketContext);
+
+    // Ensure the user is connected before displaying history page.
+    useEffect(() => {
+        if (!connectedToNetwork) navigate('/');
+    }, [connectedToNetwork]);
+
+    if (!connectedToNetwork) {
+        return <div />;
+    }
+
     const [concluded_policies, setConcludedPolicies] = useState<ConcludedPolicy[]>([]);
-    // const { socketId: id } = useContext(SocketContext);
 
     useEffect(() => {
-        refreshHistory().then((p) => setConcludedPolicies(p));
+        (async () => {
+            setConcludedPolicies(await getHistory(voterChannel));
+        })();
     }, []);
 
-    function refresh() {
-        refreshHistory().then((p) => setConcludedPolicies(p));
+    async function refresh() {
+        setConcludedPolicies(await getHistory(voterChannel));
     }
 
     function PolicyHistoryListItem({ policy }: { policy: ConcludedPolicy }) {
+        const timestamp = new Date(policy.timestamp);
+        const dateTimeStr = timestamp.toLocaleString('en-US', {
+            dateStyle: 'short',
+            timeStyle: 'medium',
+            hour12: true,
+        });
+        const millisStr = timestamp.toLocaleString('en-US', {
+            fractionalSecondDigits: 3,
+        });
+
         return (
             <tr>
-                <td style={{ textAlign: 'left' }}>{policy.id}</td>
-                <td style={{ textAlign: 'left' }}>{policy.title}</td>
-                <td style={{ textAlign: 'left' }}>{policy.description}</td>
+                <td style={{ textAlign: 'left' }}>
+                    {dateTimeStr} (.{millisStr}ms)
+                </td>
                 <td style={{ textAlign: 'left' }}>{policy.status.toString()}</td>
+                <td style={{ textAlign: 'left' }}>{policy.description}</td>
+                <td style={{ textAlign: 'left' }}>{policy.coordinates}</td>
+                <td style={{ textAlign: 'left' }}>{JSON.stringify(policy.additionalData)}</td>
             </tr>
         );
     }
@@ -158,10 +186,11 @@ function HistoryPage() {
                         <HTMLTable striped condensed bordered interactive className={'vp-table-scrollable'}>
                             <thead>
                                 <tr>
-                                    <th>Policy ID</th>
-                                    <th>Policy Title</th>
-                                    <th>Policy Coordinates</th>
+                                    <th>Timestamp</th>
                                     <th>Status</th>
+                                    <th>Policy Description</th>
+                                    <th>Policy Coordinates</th>
+                                    <th>Additional Data</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -176,8 +205,8 @@ function HistoryPage() {
                                         }
                                         return 0;
                                     })
-                                    .map(function (con_pol: ConcludedPolicy) {
-                                        return <PolicyHistoryListItem key={con_pol.id} policy={con_pol} />;
+                                    .map((policy: ConcludedPolicy) => {
+                                        return <PolicyHistoryListItem key={policy.timestamp} policy={policy} />;
                                     })}
                             </tbody>
                         </HTMLTable>
@@ -197,9 +226,8 @@ function HistoryPage() {
 
 function HomePage({ refreshDash }: { refreshDash: Function }) {
     const [forceIsOpen, setForceIsOpen] = useState(false);
-    const [connectedToNetwork, setConnectedToNetwork] = useState(false);
 
-    const { voterChannel } = useContext(SocketContext);
+    const { voterChannel, connectedToNetwork, setConnectedToNetwork } = useContext(SocketContext);
 
     // useInterval(() => {
     //     refreshDash()();
