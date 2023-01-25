@@ -207,6 +207,13 @@ end
     in question, as specified by `voter_id`, will then update its Paxos
     instances to also reflect this change.
 
+- ```elixir
+  get_history(voter_id)
+  ``` 
+  
+  Fetches the voting history for the system from a `voter_id`. This is
+  synchronized using Paxos, so this should be the same from any node.
+
 ### VoterSupervisor (`voter_supervisor.ex`)
 
 #### Starting Human Voters
@@ -321,7 +328,7 @@ VoterSupervisor.get_active_voters()
   kill_voter(voter_id, atomic \\ false)
   ```
 
-  Kills the voter with the specified voter ID with :normal to indicate that the process is
+  Kills the voter with the specified voter ID with `:normal` to indicate that the process is
   being killed on account of no longer being used. This prevents the supervisor from
   automatically restarting the voter.
 
@@ -330,4 +337,4 @@ VoterSupervisor.get_active_voters()
   ```
 
   Convenience method to kill all voter processes actively registered in the system using
-  kill_voter/1.
+  `kill_voter/1`.

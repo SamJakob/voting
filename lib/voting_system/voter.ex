@@ -43,7 +43,10 @@ defmodule VotingSystem.Voter do
     field :history_paxos, pid() | nil, default: nil
 
     # The voter history, agreed upon with Paxos.
-    field :history, list(any()) | nil, default: nil
+    field :history, list(any()) | nil, default: []
+
+    # The instance number for the voting history Paxos process.
+    field :history_instance_number, any(), default: 0
   end
 
   ## GenServer API
@@ -89,7 +92,12 @@ defmodule VotingSystem.Voter do
   Propose a policy via voter_id.
   """
   def propose(voter_id, policy) do
-    voter_id |> via_tuple |> GenServer.call({:propose, policy}, 10_000)
+    self = voter_id |> via_tuple
+    # Return the result of the voting proposal.
+    result = (self |> GenServer.call({:propose, policy}, 10_000))
+    # Then, attempt to add the result to history using Paxos.
+    self |> GenServer.call({:propose_history}, 10_000)
+    result
   end
 
   @doc """
@@ -110,6 +118,10 @@ defmodule VotingSystem.Voter do
     voter_id |> via_tuple |> GenServer.call({:update_voters, voters})
   end
 
+  def get_history(voter_id) do
+    voter_id |> via_tuple |> GenServer.call({:get_history})
+  end
+
   ## Server Callbacks
 
   @impl true
@@ -123,11 +135,58 @@ defmodule VotingSystem.Voter do
       paxos_cookie
     )
 
-    if is_pid(representative) do
+    history_paxos_id = get_history_paxos_id(state.id)
+    history_workers = get_history_workers(state.active_voters)
+    history_paxos = Paxos.start(
+      history_paxos_id, history_workers,
+      fn _, instance_number -> should_accept_history(state, nil, instance_number) end,
+      paxos_cookie
+    )
+
+    if is_pid(representative) and is_pid(history_paxos) do
       Logger.info("Initialized Voter process: #{state.id} [#{is_live_voter_string(state)}]")
-      {:ok, %{state | representative: representative, paxos_cookie: paxos_cookie}}
+      Logger.info("Initialized history process: #{history_paxos_id}")
+      {:ok, %{state | representative: representative, history_paxos: history_paxos, paxos_cookie: paxos_cookie}}
     else
-      {:error, "Failed to initialize Paxos for Voter process: #{state.id}."}
+      {:error, "Failed to initialize Voter process or Paxos process for history: #{state.id}."}
+    end
+  end
+
+  # Propose a value to a Paxos instance with `max_timeout` being an upper bound on
+  # the amount of time the whole process is permitted to take.
+  defp attempt_proposal(delegate, instance_number, value, max_timeout) do
+    time_start = Time.utc_now()
+    result = Paxos.propose(delegate, instance_number, value, max_timeout)
+
+    if result == {:abort} do
+      remaining_timeout = max_timeout - Time.diff(Time.utc_now(), time_start, :millisecond)
+
+      if remaining_timeout > 0 do
+        attempt_proposal(delegate, instance_number, value, remaining_timeout)
+      else
+        result
+      end
+    else
+      result
+    end
+  end
+
+  # Similar to attempt_proposal, but this time to read from Paxos to get the
+  # voting history decision for a given instance.
+  defp wait_for_history_decision(history_paxos, instance_number, max_timeout) do
+    time_start = Time.utc_now()
+    result = Paxos.get_decision(history_paxos, instance_number, max_timeout)
+
+    if result != nil do
+      result
+    else
+      remaining_timeout = max_timeout - Time.diff(Time.utc_now(), time_start, :millisecond)
+
+      if remaining_timeout > 0 do
+        wait_for_history_decision(history_paxos, instance_number, remaining_timeout)
+      else
+        result
+      end
     end
   end
 
@@ -144,21 +203,28 @@ defmodule VotingSystem.Voter do
     {:noreply, state}
   end
 
-  defp attempt_proposal(representative, instance_number, policy, timeout) do
-    time_start = Time.utc_now()
-    result = Paxos.propose(representative, instance_number, policy, timeout)
-
-    if result == {:abort} do
-      remaining_timeout = timeout - Time.diff(Time.utc_now(), time_start, :millisecond)
-
-      if remaining_timeout > 0 do
-        attempt_proposal(representative, instance_number, policy, remaining_timeout)
-      else
-        result
-      end
+  @impl true
+  def handle_cast({:notify_history_instance_number, instance_number}, state) do
+    # Increment the instance number if we notice a higher one.
+    # We needn't exceed the known instance number as we'll do that on propose.
+    if instance_number > state.history_instance_number do
+      %{state | history_instance_number: instance_number}
     else
-      result
+      state
     end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:notify_incoming_history, instance_number}, state) do
+    # Wait for the decision from Paxos for this instance number (up to 10s).
+    result = wait_for_history_decision(state.history_paxos, instance_number, 10_000)
+
+    # If there's a result, i.e., if it is not nil, update the state history
+    # otherwise do nothing.
+    state = if result != nil, do: %{state | history: result}, else: state
+    {:noreply, state}
   end
 
   @impl true
@@ -166,6 +232,16 @@ defmodule VotingSystem.Voter do
     # Propose the ballot/policy to the active voters with a timeout of 8,000ms (8 seconds).
     state = %{state | instance_number: state.instance_number + 1}
     result = attempt_proposal(state.representative, state.instance_number, policy, 8_000)
+    # Add the result to history (with timestamp).
+    state = %{state | history: [{DateTime.utc_now() |> DateTime.to_iso8601(), result} | state.history]}
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:propose_history}, _from, state) do
+    # Propose the history entry to the Paxos instance responsible for history.
+    state = %{state | history_instance_number: state.history_instance_number + 1}
+    result = attempt_proposal(state.history_paxos, state.history_instance_number, state.history, 8_000)
     {:reply, result, state}
   end
 
@@ -193,8 +269,9 @@ defmodule VotingSystem.Voter do
       state = %{state | active_voters: sorted_voters}
 
       # Propagate the changes to the Paxos delegate and return the response.
-      result_from_paxos = Paxos.change_participants(state.representative, state.paxos_cookie, sorted_voters, 5000)
-      {:reply, result_from_paxos, state}
+      result_from_voter_delegate = Paxos.change_participants(state.representative, state.paxos_cookie, sorted_voters, 5000)
+      result_from_history_paxos = Paxos.change_participants(state.history_paxos, state.paxos_cookie, get_history_workers(sorted_voters), 5000)
+      {:reply, {result_from_voter_delegate, result_from_history_paxos}, state}
     else
       # If there were no changes, just return :no_change and don't bother to propagate the changes.
       {:reply, :no_change, state}
@@ -202,11 +279,15 @@ defmodule VotingSystem.Voter do
   end
 
   @impl true
+  def handle_call({:get_history}, _from, state) do
+    {:reply, state.history, state}
+  end
+
+  @impl true
   def handle_call({:stop}, _from, state) do
     # Terminate Paxos and clear the state.
     Process.exit(state.representative, :kill)
-    state = %{state | representative: nil, paxos_cookie: nil}
-
+    state = %{state | representative: nil, paxos_cookie: nil, history_paxos: nil}
     {:reply, :ok, state}
   end
 
@@ -223,6 +304,23 @@ defmodule VotingSystem.Voter do
       (:math.pow(elem(b, 0) - elem(a, 0), 2)) +
       (:math.pow(elem(b, 1) - elem(a, 1), 2))
     )), 0)
+  end
+
+  # should_accept_history for history Paxos instances.
+  # This has no logic to control whether the result should be accepted, other than
+  # to indicate that it should once this process has updated its own instance number
+  # accordingly.
+  defp should_accept_history(initial_state, _, instance_number) do
+    # Notify ourselves of the new history instance number.
+    (initial_state.id |> via_tuple |> GenServer.cast({:notify_history_instance_number, instance_number}))
+
+    # At this point, we can indicate that we should wait for a new history for
+    # this instance number.
+    (initial_state.id |> via_tuple |> GenServer.cast({:notify_incoming_history, instance_number}))
+
+    # Indicate that we have acknowledged this in the process, and it can be
+    # accepted by Paxos.
+    true
   end
 
   # should_accept for simulated voters. This checks if the distance between the policy's coordinates
@@ -246,5 +344,13 @@ defmodule VotingSystem.Voter do
 
   # Computes the :via tuple used to refer to a given Voter process in the global voter registry.
   defp via_tuple(voter_id), do: {:via, Registry, {@voterRegistry, voter_id}}
+
+  # Returns the 'history_paxos' process ID from the parent process ID.
+  defp get_history_paxos_id(id), do: String.to_atom(Atom.to_string(id) <> "_history")
+
+  # Does get_history_paxos_id for every entry in a list.
+  defp get_history_workers(active_voters) do
+    Enum.map(active_voters, fn active_voter_id -> get_history_paxos_id(active_voter_id) end)
+  end
 
 end

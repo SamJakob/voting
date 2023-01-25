@@ -15,7 +15,7 @@ import { ItemPredicate, ItemRenderer, Select2 } from '@blueprintjs/select';
 import { useState } from 'react';
 import { Spinner, H1, H2, Button, Callout, H5 } from '@blueprintjs/core';
 
-import {ConcludedPolicy, Policy, Voter} from './utils/types';
+import { ConcludedPolicy, Policy, Voter } from './utils/types';
 import { defaultPolicies, getDescriptionForCoordinates } from './data/policies';
 import { PromiseButton } from './components/PromiseButton';
 import {
@@ -24,7 +24,7 @@ import {
     killAllVoters,
     killVoter,
     executePreflight,
-    refreshHistory
+    refreshHistory,
 } from './utils/networkRequests';
 import ProcessWarning from './components/Callout/ProcessWarning';
 import { SocketContext, SocketProvider } from './realtime/SocketContext';
@@ -121,29 +121,24 @@ function NavigationButtons() {
     return (
         <>
             <Button onClick={() => navigate('/')} className={Classes.MINIMAL} icon="home" text="Home" />
-            <Button
-                onClick={() => navigate('/history')}
-                className={Classes.MINIMAL}
-                icon="history"
-                text="History"
-            />
+            <Button onClick={() => navigate('/history')} className={Classes.MINIMAL} icon="history" text="History" />
         </>
     );
 }
 
 function HistoryPage() {
-    const [concluded_policies, setConcludedPolicies] = useState([])<ConcludedPolicy[]>;
-    const { socketId: id } = useContext(SocketContext);
+    const [concluded_policies, setConcludedPolicies] = useState<ConcludedPolicy[]>([]);
+    // const { socketId: id } = useContext(SocketContext);
 
     useEffect(() => {
-        refreshHistory().then(p => setConcludedPolicies(p))
-    },[])
+        refreshHistory().then((p) => setConcludedPolicies(p));
+    }, []);
 
     function refresh() {
-        refreshHistory().then(p => setConcludedPolicies(p))
+        refreshHistory().then((p) => setConcludedPolicies(p));
     }
 
-    function PolicyHistoryListItem({ policy, currentId }: { policy: ConcludedPolicy; currentId: string }) {
+    function PolicyHistoryListItem({ policy }: { policy: ConcludedPolicy }) {
         return (
             <tr>
                 <td style={{ textAlign: 'left' }}>{policy.id}</td>
@@ -158,41 +153,43 @@ function HistoryPage() {
         <div>
             <div className={'vp-navbar-spacer'} />
             <ul>
-                {concluded_policies.length > 0 ?
+                {concluded_policies.length > 0 ? (
                     <>
                         <HTMLTable striped condensed bordered interactive className={'vp-table-scrollable'}>
                             <thead>
-                            <tr>
-                                <th>Policy ID</th>
-                                <th>Policy Title</th>
-                                <th>Policy Coordinates</th>
-                                <th>Status</th>
-                            </tr>
+                                <tr>
+                                    <th>Policy ID</th>
+                                    <th>Policy Title</th>
+                                    <th>Policy Coordinates</th>
+                                    <th>Status</th>
+                                </tr>
                             </thead>
                             <tbody>
-                            {[...concluded_policies]
-                                .sort((b, a) => {
-                                    // Epoch time
-                                    if (a.timestamp < b.timestamp) {
-                                        return -1;
-                                    }
-                                    if (a.timestamp > b.timestamp ) {
-                                        return 1;
-                                    }
-                                    return 0;
-                                })
-                                .map(function (con_pol: ConcludedPolicy) {
-                                    return <PolicyHistoryListItem key={con_pol.id} policy={con_pol} currentId={id} />;
-                                })}
+                                {[...concluded_policies]
+                                    .sort((b, a) => {
+                                        // Epoch time
+                                        if (a.timestamp < b.timestamp) {
+                                            return -1;
+                                        }
+                                        if (a.timestamp > b.timestamp) {
+                                            return 1;
+                                        }
+                                        return 0;
+                                    })
+                                    .map(function (con_pol: ConcludedPolicy) {
+                                        return <PolicyHistoryListItem key={con_pol.id} policy={con_pol} />;
+                                    })}
                             </tbody>
                         </HTMLTable>
                     </>
-                :
+                ) : (
                     <>
                         <H1>No policies have been concluded yet</H1>
                     </>
-                }
-                <Button style={{marginTop: 10}}intent={"success"} icon={"refresh"} onClick={() => refresh()}>Refresh</Button>
+                )}
+                <Button style={{ marginTop: 10 }} intent={'success'} icon={'refresh'} onClick={() => refresh()}>
+                    Refresh
+                </Button>
             </ul>
         </div>
     );

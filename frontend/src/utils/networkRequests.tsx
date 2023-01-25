@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { VPToaster } from './toaster';
-import {ConcludedPolicy} from "./types";
+import { ConcludedPolicy } from './types';
 
 export async function executePreflight() {
     return (await axios.post(`/api/preflight`)).data;
@@ -24,19 +24,23 @@ export async function refreshData() {
 
 export async function refreshHistory() {
     ///////////////TESTING///////////////////
-    const policy: ConcludedPolicy = {
-        timestamp: "5893240324",
-        id: "T id",
-        description: "T description",
-        title: "T title",
+    let policies: ConcludedPolicy[] = [];
+    policies.push({
+        timestamp: '5893240324',
+        id: 'T id',
+        description: 'T description',
+        title: 'T title',
         status: false,
-    }
-
-    let policies: ConcludedPolicy[] = []
-    policies.push(policy)
-    policies.push(policy)
-    console.log("returning")
-    return policies
+    });
+    policies.push({
+        timestamp: '5893240324',
+        id: 'T id 2',
+        description: 'T description',
+        title: 'T title',
+        status: false,
+    });
+    console.log('returning');
+    return policies;
     ///////////////TESTING///////////////////
 
     // return (await axios.get('api/history')).data;
