@@ -7,9 +7,6 @@
 # General application configuration
 import Config
 
-config :voting,
-  ecto_repos: [Voting.Repo]
-
 # Configures the endpoint
 config :voting, VotingWeb.Endpoint,
   url: [host: "localhost"],

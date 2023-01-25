@@ -26,32 +26,46 @@ defmodule VotingSystem.Voter do
       tolerance: integer(),
     } | nil, default: nil
 
-    # Stores the PID of the Paxos delegate for this voter.
-    field :paxos, pid() | nil, default: nil
+    # Stores the PID of the delegate that represents this Voter within the actual
+    # voting system. This system uses a Paxos-inspired approach, but could actually
+    # be a system independent of Paxos.
+    # Paxos is now used to store the voting history of the voting system.
+    field :representative, pid() | nil, default: nil
 
     # Stores the cookie that is needed when altering the Voter's Paxos delegate configuration.
+    # This is used for all Paxos instances spawned by this Voter.
     field :paxos_cookie, any(), default: nil
 
     # The current instance number for this process.
     field :instance_number, any(), default: 0
+
+    # Stores the voting history using a Paxos instance.
+    field :history_paxos, pid() | nil, default: nil
+
+    # The voter history, agreed upon with Paxos.
+    field :history, list(any()) | nil, default: nil
   end
 
   ## GenServer API
 
-  def start_link(voter_id, active_voters, simulation_parameters \\ nil) do
+  def start_link(voter_id, simulation_parameters \\ nil, active_voters \\ []) do
+    active_voters = if Enum.member?(active_voters, voter_id), do: active_voters, else: [voter_id | active_voters]
+
     GenServer.start_link(__MODULE__, %VotingSystem.Voter{
       # The unique ID that refers to the Voter.
       id: voter_id,
+      # The list of active voters in the system, initialized to just a list
+      # containing the current voter.
       active_voters: active_voters,
       simulation_parameters: simulation_parameters
     }, name: via_tuple(voter_id))
   end
 
-  def child_spec({voter_id, active_voters, simulation_parameters}) do
+  def child_spec({voter_id, simulation_parameters, active_voters}) do
     %{
       id: nil,
       start: {__MODULE__, :start_link, [
-        voter_id, active_voters, simulation_parameters
+        voter_id, simulation_parameters, active_voters
       ]},
       # Indicate that this is a worker process.
       type: :worker,
@@ -103,15 +117,15 @@ defmodule VotingSystem.Voter do
     # Create a secure Paxos cookie, start Paxos and augment the state with the Paxos cookie
     # (assuming that Paxos start successfully).
     paxos_cookie = Helpers.Crypto.base64_secure_token()
-    paxos = Paxos.start(
+    representative = Paxos.start(
       state.id, state.active_voters,
       fn ballot, instance_number -> should_accept(state, ballot, instance_number) end,
       paxos_cookie
     )
 
-    if is_pid(paxos) do
+    if is_pid(representative) do
       Logger.info("Initialized Voter process: #{state.id} [#{is_live_voter_string(state)}]")
-      {:ok, %{state | paxos: paxos, paxos_cookie: paxos_cookie}}
+      {:ok, %{state | representative: representative, paxos_cookie: paxos_cookie}}
     else
       {:error, "Failed to initialize Paxos for Voter process: #{state.id}."}
     end
@@ -130,15 +144,15 @@ defmodule VotingSystem.Voter do
     {:noreply, state}
   end
 
-  defp attempt_proposal(paxos, instance_number, policy, timeout) do
+  defp attempt_proposal(representative, instance_number, policy, timeout) do
     time_start = Time.utc_now()
-    result = Paxos.propose(paxos, instance_number, policy, timeout)
+    result = Paxos.propose(representative, instance_number, policy, timeout)
 
     if result == {:abort} do
       remaining_timeout = timeout - Time.diff(Time.utc_now(), time_start, :millisecond)
 
       if remaining_timeout > 0 do
-        attempt_proposal(paxos, instance_number, policy, remaining_timeout)
+        attempt_proposal(representative, instance_number, policy, remaining_timeout)
       else
         result
       end
@@ -151,7 +165,7 @@ defmodule VotingSystem.Voter do
   def handle_call({:propose, policy}, _from, state) do
     # Propose the ballot/policy to the active voters with a timeout of 8,000ms (8 seconds).
     state = %{state | instance_number: state.instance_number + 1}
-    result = attempt_proposal(state.paxos, state.instance_number, policy, 8_000)
+    result = attempt_proposal(state.representative, state.instance_number, policy, 8_000)
     {:reply, result, state}
   end
 
@@ -179,7 +193,7 @@ defmodule VotingSystem.Voter do
       state = %{state | active_voters: sorted_voters}
 
       # Propagate the changes to the Paxos delegate and return the response.
-      result_from_paxos = Paxos.change_participants(state.paxos, state.paxos_cookie, sorted_voters, 5000)
+      result_from_paxos = Paxos.change_participants(state.representative, state.paxos_cookie, sorted_voters, 5000)
       {:reply, result_from_paxos, state}
     else
       # If there were no changes, just return :no_change and don't bother to propagate the changes.
@@ -190,8 +204,8 @@ defmodule VotingSystem.Voter do
   @impl true
   def handle_call({:stop}, _from, state) do
     # Terminate Paxos and clear the state.
-    Process.exit(state.paxos, :kill)
-    state = %{state | paxos: nil, paxos_cookie: nil}
+    Process.exit(state.representative, :kill)
+    state = %{state | representative: nil, paxos_cookie: nil}
 
     {:reply, :ok, state}
   end
@@ -217,14 +231,6 @@ defmodule VotingSystem.Voter do
   defp should_accept(initial_state, policy, instance_number) when initial_state.simulation_parameters != nil do
     # First, notify ourselves of the higher ballot number.
     (initial_state.id |> via_tuple |> GenServer.cast({:notify_instance_number, instance_number}))
-
-#    IO.puts(inspect initial_state.simulation_parameters.coordinates)
-#    IO.puts(inspect policy(policy, :coordinates))
-#    IO.puts(inspect initial_state.simulation_parameters.tolerance)
-#    IO.puts(inspect (euclidean_distance(
-#      initial_state.simulation_parameters.coordinates,
-#      policy(policy, :coordinates)
-#    ) <= initial_state.simulation_parameters.tolerance))
 
     # Then, decide whether we want to accept this ballot.
     euclidean_distance(

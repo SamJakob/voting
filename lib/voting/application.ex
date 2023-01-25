@@ -12,8 +12,6 @@ defmodule Voting.Application do
     children = [
       # (Task Supervisor) Start the Web Application Task Supervisor.
       {Task.Supervisor, name: VotingWeb.TaskSupervisor},
-      # (Database) Start the Ecto repository
-      # Voting.Repo,
       # (Logging and Telemetry) Start the Telemetry supervisor
       VotingWeb.Telemetry,
       # (Pub/Sub Messaging) Start the PubSub system

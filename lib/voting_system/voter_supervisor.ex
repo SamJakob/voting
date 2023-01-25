@@ -18,12 +18,15 @@ defmodule VotingSystem.VoterSupervisor do
     DynamicSupervisor.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def start_child(active_voters, voter_id, simulation_parameters \\ nil, atomic \\ false) do
+  def start_child(voter_id \\ nil, simulation_parameters \\ nil, atomic \\ false) do
+    # Ensure that a voter_id is defined.
+    voter_id = if voter_id != nil, do: voter_id, else: String.to_atom(UUID.uuid4())
+
     # Start the Voter using the specification provided by the `child_spec/1` function
     # in the Voter module. Save the response to be returned at the end.
     result = DynamicSupervisor.start_child(
       __MODULE__,
-      {Voter, {voter_id, active_voters, simulation_parameters}}
+      {Voter, {voter_id, simulation_parameters, get_active_voter_ids()}}
     )
 
     # Tell each existing process about the new voter if the operation is not meant to be
@@ -41,27 +44,31 @@ defmodule VotingSystem.VoterSupervisor do
   ##################################################################################
 
   @doc """
-  Convenience method that calls start_voter/2 by looking up the currently active voter
-  IDs in the system and appending this voter ID to it.
-  The supervisor will then internally automatically update the other voters to include\
-  this one too.
+  Convenience method that causes the supervisor to start a (human) voter with the specified
+  voter_id. If `voter_id` is not specified, a UUID will be internally defined and used.
   """
-  def start_voter(voter_id), do: start_child([voter_id | get_active_voter_ids()], voter_id)
+  def start_voter(voter_id \\ nil), do: start_child(voter_id)
 
   @doc """
-  Starts a process for a human (live) voter.
+  Like start_voter/1 but returns the PID, directly, on :ok and raises on non-:ok.
+  Mostly useful for command-line demos where we want to be sure that the Voter started
+  successfully.
   """
-  def start_voter(active_voters, voter_id), do: start_child(active_voters, voter_id)
+  def start_voter!(voter_id \\ nil) do
+    case start_voter(voter_id) do
+      {:ok, pid} -> pid
+      err -> throw err
+    end
+  end
 
   @doc """
   Starts a process for a single automated (simulated) voter.
   """
-  def start_automated_voter(active_voters, voter_id \\ nil, atomic \\ false) do
-    voter_id = if voter_id != nil, do: voter_id, else: String.to_atom(UUID.uuid4())
+  def start_automated_voter(voter_id \\ nil, atomic \\ false) do
     coordinates = {Enum.random(-10..10), Enum.random(-10..10)}
     tolerance = Enum.random(@simTolerance)
 
-    start_child(active_voters, voter_id, %{
+    start_child(voter_id, %{
       coordinates: coordinates,
       tolerance: tolerance
     }, atomic)
@@ -72,7 +79,7 @@ defmodule VotingSystem.VoterSupervisor do
   """
   def start_automated_voters(count) when count > 0 do
     voters = for _ <- 1..count, do: String.to_atom(UUID.uuid4())
-    result = Enum.map(voters, fn voter -> start_automated_voter(voters, voter, true) end)
+    result = Enum.map(voters, fn voter -> start_automated_voter(voter, true) end)
 
     # Wait for all the voters to be added, then have everyone update the list of active voters.
     update_voters()
