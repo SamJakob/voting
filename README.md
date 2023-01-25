@@ -143,7 +143,9 @@ end
 ```
 
 #### All Methods
-- `start_link(voter_id , simulation_parameters \\ nil, active_voters \\ [])`  
+- ```elixir
+  start_link(voter_id , simulation_parameters \\ nil, active_voters \\ [])
+  ```  
 
     Used to start a new Voter process. `voter_id` is an atom used to
     identify this process globally and uniquely within the system.
@@ -164,32 +166,42 @@ end
 
     https://www.desmos.com/calculator/n0mhfhuz85
 
-- `stop(voter_id, reason)`
+- ```elixir
+  stop(voter_id, reason)
+  ```
 
     Used to stop the Voter process. If `reason` is not `:normal`, the
     supervisor will automatically restart the `Voter` process.
     `voter_id` is the ID of the voter process, not its PID (see 'Voter
     and Process IDs' above).
 
-- `propose(voter_id, policy)`
+- ```elixir
+  propose(voter_id, policy)
+  ```
 
     Propose a `policy`, the `VotingSystem.Policy` record is provided for
     convenience and clarity when defining a policy to use here.
     `voter_id` is the ID of the voter process, not its PID (see 'Voter
     and Process IDs' above).
 
-- `is_simulated(voter_id)`
+- ```elixir
+  is_simulated(voter_id)
+  ```
 
     Check if a Voter is simulated (`true`) or human (`false`). Simply
     returns the boolean depending on which is the case.
 
-- `get_overview(voter_id)`
+- ```elixir
+  get_overview(voter_id)
+  ```
 
     Primarily for debugging, gets an overview of Voter process state, by
     simply printing relevant bits of state. (Excludes 'private' information
     such as the Paxos cookie.)
 
-- `update_voters(voter_id, voters)`
+- ```elixir
+  update_voters(voter_id, voters)
+  ```
 
     Updates the list of voters that this voter will talk to. The voter
     in question, as specified by `voter_id`, will then update its Paxos
@@ -230,18 +242,24 @@ VoterSupervisor.get_active_voters()
 
 #### All Methods
 
-- `start_voter(voter_id \\ nil)`
+- ```elixir
+  start_voter(voter_id \\ nil)
+  ```
 
   Convenience method that causes the supervisor to start a (human) voter with the specified
   voter_id. If `voter_id` is not specified, a UUID will be internally defined and used.
 
-- `start_voter!(voter_id)`
+- ```elixir
+  start_voter!(voter_id)
+  ```
 
-  Like start_voter/1 but returns the PID, directly, on :ok and raises on non-:ok.
+  Like `start_voter/1` but returns the PID, directly, on :ok and raises on non-:ok.
   Mostly useful for command-line demos where we want to be sure that the Voter started
   successfully.
 
-- `start_automated_voter(voter_id \\ nil, atomic \\ false)`
+- ```elixir
+  start_automated_voter(voter_id \\ nil, atomic \\ false)
+  ```
 
   Starts a process for a single automated (simulated) voter.
   `atomic` denotes whether the list of participants in the system should _not_ be
@@ -249,49 +267,67 @@ VoterSupervisor.get_active_voters()
   added to the system at once (`atomic` can be set to true and the participants can be
   subsequently updated in one go.)
 
-- `start_automated_voters(count)`
+- ```elixir
+  start_automated_voters(count)
+  ```
 
   See `start_automated_voter/2`, but starts multiple automated voters using the
   approach suggested.
 
-- `get_active_voter_pids()`
+- ```elixir
+  get_active_voter_pids()
+  ```
 
   Fetches the process IDs of all active voters in the system.
   This probably isn't very useful on its own as the GenServer for voters relies on a Voter ID.
   You can can, instead, get a list of voter IDs by using `get_active_voter_ids/0`.
 
-- `get_active_voter_ids()`
+- ```elixir
+  get_active_voter_ids()
+  ```
 
   Fetches the list of Voter IDs currently registered and active in the system.
 
-- `has_active_voter_id?(id)`
+- ```elixir
+  has_active_voter_id?(id)
+  ```
 
   Checks if a voter ID is registered with the system. This has the benefit of exiting
   early if the voter ID is found.
 
-- `get_voter_by_id(id)`
+- ```elixir
+  get_voter_by_id(id)
+  ```
 
   Looks up a voter by the specified ID and returns its PID.
 
-- `get_active_voter_count(detailed \\ true)`
+- ```elixir
+  get_active_voter_count(detailed \\ true)
+  ```
 
   Fetches the list of currently active voter processes registered with the supervisor.
   If `detailed` is set to true (which is the default), the result is a tuple:
   `{total_active_voters, simulated_voters, human_voters}`
   Otherwise, if `detailed` is set to false, just the total active voters is returned.
 
-- `get_active_voters()`
+- ```elixir
+  get_active_voters()
+  ```
 
   Fetches a detailed list of each active voter in the system. This is useful for displaying
   or debugging application state.
 
-- `kill_voter(voter_id, atomic \\ false)`
+- ```elixir
+  kill_voter(voter_id, atomic \\ false)
+  ```
 
   Kills the voter with the specified voter ID with :normal to indicate that the process is
   being killed on account of no longer being used. This prevents the supervisor from
   automatically restarting the voter.
 
-- `kill_all_voters()`
+- ```elixir
+  kill_all_voters()
+  ```
 
   Convenience method to kill all voter processes actively registered in the system using
   kill_voter/1.
