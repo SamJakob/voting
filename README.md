@@ -1,5 +1,7 @@
 # Voting
 
+![Architecture Diagram](docs/Architecture.png)
+
 ## Running
 
 1. To fetch dependencies (necessary for console and web interface):
@@ -29,10 +31,24 @@ and distribute the result amongst each Voter so every participant has an
 up-to-date view of the accepted policies.
 
 ### Safety
-TODO
+- **Quorum**: The system will accept a voting history agreed upon by a majority
+of nodes (i.e., the voting record is synchronized and maintained across all
+nodes).
+- **Validity**: The voting record will only contain policies voted upon by the
+system.
+- **RPC Validity**: The non-injective agreement and synchronization security
+properties hold for RPC calls - a response from a Paxos delegate will only be
+accepted if it was requested during the same invocation as, and by the process
+that, issued the request
 
 ### Liveness
-TODO
+- **Termination**: The system will eventually reach a decision.
+- **Fault Tolerance**: Given a majority quorum of correct nodes, the system will
+continue to function.
+- **Progress**: The system will make progress towards a decision, even if issues
+prevent the system from making an immediate decision.
+- **Eventual Agreement**: Eventually, the system will agree on a correct voting
+history.
 
 ## Example Invocation (Command-Line)
 ```elixir
@@ -71,10 +87,18 @@ Voter.get_history(:my_voter_2) # Should match the above
 ```
 
 ## REST API
+We've implemented a REST API that allows for the React frontend to
+execute tasks on the backend.
 
-We've implemented a REST API that allows for the React frontend to execute tasks on the backend.
+Tasks invoked using the REST API are generally sent to the
+VoterSupervisor as this API is stateless. For interactions with a
+specific voter process on the backend, the
+[WebSocket API](#websocket-api) is used.
 
-The front-end will make these requests in `networkRequests.tsx`. In here, HTTP requests are made to our REST API, the REST API will then be able to call relevent backend function using the Elixir API explained further below.
+The front-end will make these requests in `networkRequests.tsx`.
+In here, HTTP requests are made to our REST API, the REST API will
+then be able to call relevant backend function using the Elixir API
+explained further below.
 
 ### Example
 
@@ -108,35 +132,70 @@ All the below methods are triggered by React components on our front-end.
 
 #### All Methods
 
-```javascript
+```typescript
 executePreflight()
 ```
 Checks before the launch screen is shown to ensure all services are running correctly before launching a session.
 
-```javascript
+```typescript
 spawnVoters(voters: number)
 ```
 Spawns a set number of voters, which is passed in from our React components.
 
-```javascript
+```typescript
 killVoter(id: string)
 ```
 Given a voter ID, will terminate a voter process.
 
-```javascript
+```typescript
 killAllVoter()
 ```
 Kills all voters in the session.
 
-```javascript
+```typescript
 refreshData()
 ```
 Will call `get_active_voters()` and will return the latest data on all the voters in the session. This function can be called manually with a button, or will be triggered whenever new voters are spawned or deleted.
 
-```javascript
-refreshHistory()
+## WebSocket API
+The WebSocket API, powered by Phoenix's Real-Time library, allows a
+user of the web application to interact with a specific Voter process
+on the backend to view history and propose policies.
+
+When a user loads the web interface, a WebSocket connection is opened
+to the server, after a Voter ID is requested. Once that connection is
+ready, the user immediately joins a channel and a voter process is 
+spawned for them in the backend system.
+
+Similarly to the REST API, this just calls methods from the
+`VotingSystem` set of modules when a call is made. However, the
+methods are defined in `socketRequests.tsx`.
+
+```typescript
+connectToNetwork()
 ```
-Will return the policy history. This function is also called once the history page is loaded to the user.
+Connect to the WebSocket network. As soon as this call is made, a voter
+process will be spawned for the voter.
+
+```typescript
+leaveNetwork()
+```
+Disconnect from the WebSocket network. This instructs the backend that
+the Voter process will no longer be used, and it can therefore be
+killed and removed from the network.
+
+```typescript
+propose(policy: Policy)
+```
+Propose a policy to the system as a specific voter. (In other words,
+instructs the user's Voter process representative within the system to
+start a vote on a policy.)
+
+```typescript
+getHistory()
+```
+Will return the policy history. This function is also called once the
+history page is loaded to the user.
 
 ## Elixir API
 

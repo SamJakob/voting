@@ -1,4 +1,4 @@
-import { ConcludedPolicy, Policy, toReadableStatus } from './types';
+import { Policy, toReadableStatus } from './types';
 import { Channel } from 'phoenix';
 
 export async function propose(voterChannel: Channel, policy: Policy) {
