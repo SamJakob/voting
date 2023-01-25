@@ -67,7 +67,71 @@ Voter.get_history(:my_voter_2) # Should match the above
 
 ## REST API
 
-TODO
+We've implemented a REST API that allows for the React frontend to execute tasks on the backend.
+
+The front-end will make these requests in `networkRequests.tsx`. In here, HTTP requests are made to our REST API, the REST API will then be able to call relevent backend function using the Elixir API explained further below.
+
+### Example
+
+#### networkRequests.tsx
+```javascript
+export async function refreshData() {
+    return (await axios.get('/api/refresh')).data;
+}
+```
+
+This function will be triggered by a refresh button on the front-end, and will trigger a GET request to our REST API.
+
+#### router.ex
+
+```elixir
+get "/refresh", ApiController, :refresh
+```
+We define our root for our REST API. This will then call the `refresh` function in `api_controller.ex`
+
+#### api_controller.ex
+
+```elixir
+def refresh(conn, _params) do
+  active_voters = VoterSupervisor.get_active_voters()
+  json(conn, %{voters: active_voters})
+end
+```
+The appropriate Elixir backend function will now be called. `get_active_voters()` is a function in our Elixir API explained further below.
+
+All the below methods are triggered by React components on our front-end.
+
+#### All Methods
+
+```javascript
+executePreflight()
+```
+Checks before the launch screen is shown to ensure all services are running correctly before launching a session.
+
+```javascript
+spawnVoters(voters: number)
+```
+Spawns a set number of voters, which is passed in from our React components.
+
+```javascript
+killVoter(id: string)
+```
+Given a voter ID, will terminate a voter process.
+
+```javascript
+killAllVoter()
+```
+Kills all voters in the session.
+
+```javascript
+refreshData()
+```
+Will call `get_active_voters()` and will return the latest data on all the voters in the session. This function can be called manually with a button, or will be triggered whenever new voters are spawned or deleted.
+
+```javascript
+refreshHistory()
+```
+Will return the policy history. This function is also called once the history page is loaded to the user.
 
 ## Elixir API
 
