@@ -34,6 +34,37 @@ TODO
 ### Liveness
 TODO
 
+## Example Invocation (Command-Line)
+```elixir
+alias VotingSystem.{Voter, VoterSupervisor, Policy}
+import VotingSystem.Policy
+
+# Start 5 automated voters to vote, a 'human' voter
+# to propose policies with and a second human voter to
+# check that the history has synchronized correctly.
+VoterSupervisor.start_automated_voters(5)
+VoterSupervisor.start_voter!(:my_voter)
+VoterSupervisor.start_voter!(:my_voter_2)
+
+# Propose a ballot to vote on and wait for it to complete.
+proposal = policy(coordinates: {5, -5}, description: "Free ice cream")
+Voter.propose(:my_voter, proposal)
+
+# (!) Begin Paxos Usage:
+Voter.get_history(:my_voter)
+Voter.get_history(:my_voter_2) # Should match the above
+# (!) End of Paxos Usage:
+
+# Additionally, you can check that *all* the nodes agree on the
+# voting history as follows:
+(Voter.get_history(:my_voter) == VoterSupervisor.get_active_voter_ids()
+  |> Enum.map(fn voter -> Voter.get_history(voter) end)
+  |> Enum.reduce(fn x, accumulator -> if x == accumulator, do: x, else: false end))
+
+# Will return true if get_history for every voter matches, otherwise
+# will return false.
+```
+
 ## REST API
 
 TODO
@@ -44,11 +75,15 @@ The interfaces for the Voting system are separate
 from the rest of the system (web interface, etc.,).
 To make interacting with them more fluent, you can
 tell Elixir that the most commonly used classes,
-`Voter` and `VoterSupervisor` belong to the 
-`VotingSystem` module as follows:
+`Voter`, `VoterSupervisor` and `Policy` belong to the 
+`VotingSystem` module (as well as import the `Policy`
+module) as follows:
 ```elixir
-alias VotingSystem.{Voter, VoterSupervisor}
+alias VotingSystem.{Voter, VoterSupervisor, Policy}
+import Policy
 ```
+(Policy may also be helpful if you are proposing, otherwise you
+can omit the alias and respective import.)
 
 **NOTE: The following examples assume that you have
 these aliases set.**
@@ -124,8 +159,9 @@ that have been passed or rejected (i.e., sessions) using Paxos.
 
 #### Proposing a policy
 ```elixir
-# Aliases as defined above.
-import VotingSystem.Policy
+import VotingSystem.{Voter, Policy}
+
+# Assumes example for 'starting voters' has been run.
 
 proposal = policy(
   coordinates: {5, -5},
@@ -135,11 +171,25 @@ proposal = policy(
 # PLEASE NOTE THAT THIS IS NOT CONSIDERED TO BE THE USE OF PAXOS
 # WITHIN THIS SYSTEM. THE VOTING PROCEDURE JUST USES A PAXOS-LIKE
 # APPROACH.
+
+# :v1 must be a 'human' voter in this example.
 case Voter.propose(:v1, proposal) do
   {:abort} -> "Policy vote was interrupted."
   {:timeout} -> "Policy failed to pass."
   {:decision, _} -> "Your policy, '#{policy(proposal, :description)}', passed successfully!"
 end
+```
+
+#### Getting history
+```elixir
+import VotingSystem.{Voter}
+
+# Assumes example in 'Proposing a policy' has been run.
+
+Voter.get_history(:v1)
+
+# Note that to get the history of a Voter with a UUID as their Voter ID,
+# you'll need to use String.to_atom (or String.to_existing_atom).
 ```
 
 #### All Methods
