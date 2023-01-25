@@ -101,7 +101,7 @@ section.
 A `Voter` is a representative, within the system, of some entity with
 the ability to vote or propose policies.
 
-- Human voters are controlled directly by a human. They currently do
+- **Human voters** are controlled directly by a human. They currently do
 not participate in the pass/reject voting process (as this is just a minimal
 proof of concept) but could in a real system, they can however arbitrarily
 propose policies to be voted on and added to the history. **For the purposes
@@ -112,7 +112,7 @@ encounter.**
     as soon as someone visits the page and are destroyed once they
     leave the page.
 
-- Simulated voters are automated, based on the parameters supplied to
+- **Simulated voters** are automated, based on the parameters supplied to
 them on startup. They cannot propose policies, however they can vote on
 policies that have been proposed.
 
@@ -148,16 +148,12 @@ end
     Used to start a new Voter process. `voter_id` is an atom used to
     identify this process globally and uniquely within the system.
 
-    <br>
-
     `active_voters` can optionally be specified to indicate the list of active
     voters in the system, but this is not used when a `VoterSupervisor` is used
     (except possibly during initialization) as the `VoterSupervisor` will
     subsequently make a call to update the list of voters such that each `Voter`
     in the system is up-to-date and consistent on the list of voters. When not
     specified, this value will initialize to just being the Voter itself.
-
-    <br>
     
     `simulation_parameters` may optionally be specified to make the Voter a simulated
     voter, where `simulation_parameters.coordinates` (`{integer(), integer()}`)
@@ -166,11 +162,7 @@ end
     acceptable proposal coordinates. (`0` is only identical coordinates,
     `30` is any proposal is accepted).
 
-    <br>
-
     https://www.desmos.com/calculator/n0mhfhuz85
-
-<br>
 
 - `stop(voter_id, reason)`
 
@@ -179,8 +171,6 @@ end
     `voter_id` is the ID of the voter process, not its PID (see 'Voter
     and Process IDs' above).
 
-<br>
-
 - `propose(voter_id, policy)`
 
     Propose a `policy`, the `VotingSystem.Policy` record is provided for
@@ -188,22 +178,16 @@ end
     `voter_id` is the ID of the voter process, not its PID (see 'Voter
     and Process IDs' above).
 
-<br>
-
 - `is_simulated(voter_id)`
 
     Check if a Voter is simulated (`true`) or human (`false`). Simply
     returns the boolean depending on which is the case.
-
-<br>
 
 - `get_overview(voter_id)`
 
     Primarily for debugging, gets an overview of Voter process state, by
     simply printing relevant bits of state. (Excludes 'private' information
     such as the Paxos cookie.)
-
-<br>
 
 - `update_voters(voter_id, voters)`
 
@@ -251,15 +235,11 @@ VoterSupervisor.get_active_voters()
   Convenience method that causes the supervisor to start a (human) voter with the specified
   voter_id. If `voter_id` is not specified, a UUID will be internally defined and used.
 
-<br>
-
 - `start_voter!(voter_id)`
 
   Like start_voter/1 but returns the PID, directly, on :ok and raises on non-:ok.
   Mostly useful for command-line demos where we want to be sure that the Voter started
   successfully.
-
-<br>
 
 - `start_automated_voter(voter_id \\ nil, atomic \\ false)`
 
@@ -269,14 +249,10 @@ VoterSupervisor.get_active_voters()
   added to the system at once (`atomic` can be set to true and the participants can be
   subsequently updated in one go.)
 
-<br>
-
 - `start_automated_voters(count)`
 
   See `start_automated_voter/2`, but starts multiple automated voters using the
   approach suggested.
-
-<br>
 
 - `get_active_voter_pids()`
 
@@ -284,50 +260,36 @@ VoterSupervisor.get_active_voters()
   This probably isn't very useful on its own as the GenServer for voters relies on a Voter ID.
   You can can, instead, get a list of voter IDs by using `get_active_voter_ids/0`.
 
-<br>
-
 - `get_active_voter_ids()`
 
   Fetches the list of Voter IDs currently registered and active in the system.
-
-<br>
 
 - `has_active_voter_id?(id)`
 
   Checks if a voter ID is registered with the system. This has the benefit of exiting
   early if the voter ID is found.
 
-<br>
-
-- get_voter_by_id(id)
+- `get_voter_by_id(id)`
 
   Looks up a voter by the specified ID and returns its PID.
 
-<br>
-
-- get_active_voter_count(detailed \\ true)
+- `get_active_voter_count(detailed \\ true)`
 
   Fetches the list of currently active voter processes registered with the supervisor.
   If `detailed` is set to true (which is the default), the result is a tuple:
   `{total_active_voters, simulated_voters, human_voters}`
   Otherwise, if `detailed` is set to false, just the total active voters is returned.
 
-<br>
-
 - `get_active_voters()`
 
   Fetches a detailed list of each active voter in the system. This is useful for displaying
   or debugging application state.
-
-<br>
 
 - `kill_voter(voter_id, atomic \\ false)`
 
   Kills the voter with the specified voter ID with :normal to indicate that the process is
   being killed on account of no longer being used. This prevents the supervisor from
   automatically restarting the voter.
-
-<br>
 
 - `kill_all_voters()`
 
